@@ -1,0 +1,145 @@
+from django.contrib.auth import get_user_model
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+from apps.accounts.countries import get_registration_options, get_states_for_country
+from apps.accounts.responses import api_error, api_success
+from apps.accounts.serializers import (
+    CustomTokenObtainPairSerializer,
+    ForgotPasswordSerializer,
+    OrganizationSerializer,
+    RegisterResponseSerializer,
+    RegisterSerializer,
+    ResetPasswordSerializer,
+    UserSerializer,
+    VerifyOTPSerializer,
+)
+from apps.accounts.password_reset import create_and_send_password_reset, reset_password_with_token
+from apps.accounts.services import verify_otp
+
+User = get_user_model()
+
+
+class RegistrationOptionsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return api_success(data=get_registration_options())
+
+
+class CountryStatesView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, country_code):
+        return api_success(
+            data={
+                "country": country_code.upper(),
+                "states": get_states_for_country(country_code),
+            }
+        )
+
+
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error("Validation error", errors=serializer.errors)
+
+        result = serializer.save()
+        return api_success(
+            data=RegisterResponseSerializer(result).data,
+            message="Registration successful. Please verify your email with the OTP sent.",
+            status_code=status.HTTP_201_CREATED,
+        )
+
+
+class VerifyOTPView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = VerifyOTPSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error("Validation error", errors=serializer.errors)
+
+        email = serializer.validated_data["email"]
+        code = serializer.validated_data["code"]
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return api_error("User not found", status_code=status.HTTP_404_NOT_FOUND)
+
+        if verify_otp(user, code):
+            return api_success(
+                data=UserSerializer(user).data,
+                message="Email verified successfully.",
+            )
+        return api_error("Invalid or expired OTP")
+
+
+class ForgotPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error("Validation error", errors=serializer.errors)
+
+        email = User.objects.normalize_email(serializer.validated_data["email"])
+        user = User.objects.filter(email=email, is_email_verified=True).first()
+        if user:
+            create_and_send_password_reset(user)
+
+        return api_success(
+            message=(
+                "If an account with that email exists, "
+                "a password reset link has been sent."
+            )
+        )
+
+
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error("Validation error", errors=serializer.errors)
+
+        user = reset_password_with_token(
+            serializer.validated_data["reset_token"],
+            serializer.validated_data["password"],
+        )
+        if not user:
+            return api_error(
+                "Invalid or expired reset token.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return api_success(message="Password reset successfully. You can now log in.")
+
+
+class LoginView(TokenObtainPairView):
+    permission_classes = [AllowAny]
+    serializer_class = CustomTokenObtainPairSerializer
+
+
+class TokenRefreshAPIView(TokenRefreshView):
+    permission_classes = [AllowAny]
+
+
+class MeView(APIView):
+    def get(self, request):
+        organization = request.user.owned_organizations.order_by("created_at").first()
+        return api_success(
+            data={
+                "user": UserSerializer(request.user).data,
+                "organization": (
+                    OrganizationSerializer(organization).data if organization else None
+                ),
+            }
+        )

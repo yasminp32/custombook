@@ -1,0 +1,15 @@
+BANKING_CURRENCIES = [
+    {"value": "INR", "label": "INR- Indian Rupee"},
+    {"value": "AUD", "label": "AUD- Australian Dollar"},
+    {"value": "BND", "label": "BND- Brunei Dollar"},
+    {"value": "CAD", "label": "CAD- Canadian Dollar"},
+    {"value": "CNY", "label": "CNY- Yuan Renminbi"},
+    {"value": "EUR", "label": "EUR- Euro"},
+    {"value": "GBP", "label": "GBP- Pound Sterling"},
+    {"value": "JPY", "label": "JPY- Japanese Yen"},
+    {"value": "SAR", "label": "SAR- Saudi Riyal"},
+    {"value": "USD", "label": "USD- United States Dollar"},
+    {"value": "ZAR", "label": "ZAR- South African Rand"},
+    {"value": "AED", "label": "AED- UAE Dirham"},
+    {"value": "SGD", "label": "SGD- Singapore Dollar"},
+]
