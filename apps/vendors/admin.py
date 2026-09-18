@@ -7,14 +7,15 @@ from apps.vendors.models import Vendor, VendorPayment
 class VendorAdmin(admin.ModelAdmin):
     list_display = (
         "display_name",
-        "gstin",
+        "company_name",
+        "email",
+        "phone",
         "organization",
-        "payment_term",
         "status",
         "created_at",
     )
     list_filter = ("status",)
-    search_fields = ("display_name", "gstin")
+    search_fields = ("display_name", "company_name", "email", "phone", "gstin")
     readonly_fields = ("id", "created_at", "updated_at")
 
 

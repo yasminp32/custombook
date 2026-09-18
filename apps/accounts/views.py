@@ -50,9 +50,19 @@ class RegisterView(APIView):
             return api_error("Validation error", errors=serializer.errors)
 
         result = serializer.save()
+        email_sent = result.get("email_sent", True)
+        message = (
+            "Registration successful. Please verify your email with the OTP sent."
+            if email_sent
+            else (
+                "Registration successful, but the OTP email could not be sent "
+                "(mail provider limit or SMTP error). Use otp_code from this "
+                "response in DEBUG, or check the server console."
+            )
+        )
         return api_success(
             data=RegisterResponseSerializer(result).data,
-            message="Registration successful. Please verify your email with the OTP sent.",
+            message=message,
             status_code=status.HTTP_201_CREATED,
         )
 

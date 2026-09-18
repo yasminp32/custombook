@@ -1,0 +1,99 @@
+{
+  "info": {
+    "name": "Techgeum Reports",
+    "description": "Run Login then GET catalog. Open a report with report_key. Period is optional: this_fiscal_year, this_year, this_month, last_month, last_fiscal_year. Do not leave a space after the URL.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "access_token", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "0. Login",
+      "item": [
+        {
+          "name": "Login — saves access_token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.access || (json.data && json.data.access);",
+                  "if (token) { pm.collectionVariables.set('access_token', token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"your@email.com\",\n  \"password\": \"YourPassword\"\n}"
+            },
+            "url": "{{base_url}}/api/accounts/login/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Menu",
+      "item": [
+        { "name": "Reports catalog", "request": { "method": "GET", "url": "{{base_url}}/api/reports/" } },
+        { "name": "Options", "request": { "method": "GET", "url": "{{base_url}}/api/reports/options/" } },
+        { "name": "Form", "request": { "method": "GET", "url": "{{base_url}}/api/reports/form/" } },
+        { "name": "Search Sales", "request": { "method": "GET", "url": "{{base_url}}/api/reports/?search=Sales" } }
+      ]
+    },
+    {
+      "name": "2. Financial Reports",
+      "item": [
+        { "name": "Financial index", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/" } },
+        { "name": "Balance Sheet", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/" } },
+        { "name": "Profit and Loss", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/" } },
+        { "name": "Cash Flow Statement", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/" } }
+      ]
+    },
+    {
+      "name": "3. Sales",
+      "item": [
+        { "name": "Sales by Customer", "request": { "method": "GET", "url": "{{base_url}}/api/reports/sales/sales-by-customer/" } },
+        { "name": "Sales by Item", "request": { "method": "GET", "url": "{{base_url}}/api/reports/sales/sales-by-item/" } },
+        { "name": "Sales by Sales Person", "request": { "method": "GET", "url": "{{base_url}}/api/reports/sales/sales-by-sales-person/" } }
+      ]
+    },
+    {
+      "name": "4. Receivables",
+      "item": [
+        { "name": "Customer Balance Summary", "request": { "method": "GET", "url": "{{base_url}}/api/reports/?report_key=customer_balance_summary" } },
+        { "name": "AR Aging Summary", "request": { "method": "GET", "url": "{{base_url}}/api/reports/?report_key=ar_aging_summary" } },
+        { "name": "AR Aging Details", "request": { "method": "GET", "url": "{{base_url}}/api/reports/?report_key=ar_aging_details" } },
+        { "name": "Payments Received", "request": { "method": "GET", "url": "{{base_url}}/api/reports/?report_key=payments_received" } }
+      ]
+    },
+    {
+      "name": "5. Expenses and Payables",
+      "item": [
+        { "name": "Expenses by Category", "request": { "method": "GET", "url": "{{base_url}}/api/reports/?report_key=expenses_by_category" } },
+        { "name": "Payments Made", "request": { "method": "GET", "url": "{{base_url}}/api/reports/?report_key=payments_made" } },
+        { "name": "Vendor Balance Summary", "request": { "method": "GET", "url": "{{base_url}}/api/reports/?report_key=vendor_balance_summary" } }
+      ]
+    },
+    {
+      "name": "6. Period and errors",
+      "item": [
+        { "name": "This month P&L", "request": { "method": "GET", "url": "{{base_url}}/api/reports/?report_key=profit_and_loss&period=this_month" } },
+        { "name": "Empty report_key — 400", "request": { "method": "GET", "url": "{{base_url}}/api/reports/?report_key=" } },
+        { "name": "Unknown report — 404", "request": { "method": "GET", "url": "{{base_url}}/api/reports/?report_key=unknown" } }
+      ]
+    }
+  ]
+}

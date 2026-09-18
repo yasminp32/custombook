@@ -1,0 +1,192 @@
+{
+  "info": {
+    "name": "Techgeum Timer",
+    "description": "Run in order: 0 Login → 1 Form → 2 Select project/task → 3 Start → 4 Current → 5 Pause → 6 Start again → 7 Stop (saves a time entry). Projects come from /api/projects/. Tasks include Homepage layout, API integration, Design review, Keyword research, Bug fixing.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "access_token", "value": "" },
+    { "key": "project_id", "value": "" },
+    { "key": "task_name", "value": "Homepage layout" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "0. Login",
+      "item": [
+        {
+          "name": "Login — saves access_token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.access || (json.data && json.data.access);",
+                  "if (token) { pm.collectionVariables.set('access_token', token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"your@email.com\",\n  \"password\": \"YourPassword\"\n}"
+            },
+            "url": "{{base_url}}/api/accounts/login/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Form and current timer",
+      "item": [
+        {
+          "name": "Form — projects, tasks, elapsed 00:00:00 Paused",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json.data || {};",
+                  "if (data.projects && data.projects.length) {",
+                  "  pm.collectionVariables.set('project_id', data.projects[0].project_id);",
+                  "}",
+                  "if (data.tasks && data.tasks.length) {",
+                  "  pm.collectionVariables.set('task_name', data.tasks[0].task_name);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": { "method": "GET", "url": "{{base_url}}/api/timer/form/" }
+        },
+        {
+          "name": "Options",
+          "request": { "method": "GET", "url": "{{base_url}}/api/timer/options/" }
+        },
+        {
+          "name": "Current timer",
+          "request": { "method": "GET", "url": "{{base_url}}/api/timer/" }
+        }
+      ]
+    },
+    {
+      "name": "2. Select project, task, notes",
+      "item": [
+        {
+          "name": "PATCH — Select Project and Task",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_id\": \"{{project_id}}\",\n  \"task_name\": \"{{task_name}}\",\n  \"notes\": \"Working on homepage layout\"\n}"
+            },
+            "url": "{{base_url}}/api/timer/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Start, pause, stop",
+      "item": [
+        {
+          "name": "Start",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_id\": \"{{project_id}}\",\n  \"task_name\": \"{{task_name}}\",\n  \"notes\": \"Working on homepage layout\"\n}"
+            },
+            "url": "{{base_url}}/api/timer/start/"
+          }
+        },
+        {
+          "name": "Current while running",
+          "request": { "method": "GET", "url": "{{base_url}}/api/timer/" }
+        },
+        {
+          "name": "Pause",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{base_url}}/api/timer/pause/"
+          }
+        },
+        {
+          "name": "Start again (resume)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{base_url}}/api/timer/start/"
+          }
+        },
+        {
+          "name": "Stop — saves time entry",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_id\": \"{{project_id}}\",\n  \"task_name\": \"{{task_name}}\"\n}"
+            },
+            "url": "{{base_url}}/api/timer/stop/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. History",
+      "item": [
+        {
+          "name": "History — time entries from this timer",
+          "request": { "method": "GET", "url": "{{base_url}}/api/timer/history/" }
+        },
+        {
+          "name": "History page 1",
+          "request": { "method": "GET", "url": "{{base_url}}/api/timer/history/?page=1&page_size=20" }
+        }
+      ]
+    },
+    {
+      "name": "5. Errors",
+      "item": [
+        {
+          "name": "Stop with no time — 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{base_url}}/api/timer/stop/"
+          }
+        },
+        {
+          "name": "Start then Stop without project — 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_id\": null,\n  \"task_name\": \"\"\n}"
+            },
+            "url": "{{base_url}}/api/timer/stop/"
+          }
+        }
+      ]
+    }
+  ]
+}

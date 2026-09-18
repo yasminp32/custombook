@@ -1,3 +1,4 @@
+import logging
 import random
 import string
 from datetime import timedelta
@@ -8,6 +9,8 @@ from django.db.models import Q
 from django.utils import timezone
 
 from apps.accounts.models import EmailOTP
+
+logger = logging.getLogger(__name__)
 
 
 def generate_otp_code(length=6):
@@ -36,16 +39,24 @@ def create_and_send_otp(user):
         expires_at=expires_at,
     )
 
-    send_mail(
-        subject="Your Techgeum verification code",
-        message=(
-            f"Your verification code is: {code}\n\n"
-            f"This code expires in {settings.OTP_EXPIRY_MINUTES} minutes."
-        ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-        fail_silently=False,
-    )
+    try:
+        send_mail(
+            subject="Your Techgeum verification code",
+            message=(
+                f"Your verification code is: {code}\n\n"
+                f"This code expires in {settings.OTP_EXPIRY_MINUTES} minutes."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+        otp.email_sent = True
+    except Exception:
+        logger.exception("Failed to send OTP email to %s", user.email)
+        otp.email_sent = False
+        if settings.DEBUG:
+            logger.warning("DEBUG OTP for %s: %s", user.email, code)
+            print(f"[DEV] OTP for {user.email}: {code}")
 
     return otp
 

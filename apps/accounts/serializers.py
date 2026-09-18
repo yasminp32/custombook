@@ -132,6 +132,8 @@ class RegisterResponseSerializer(serializers.Serializer):
     user = UserSerializer()
     organization = OrganizationSerializer(allow_null=True)
     data_center = serializers.CharField()
+    email_sent = serializers.BooleanField(required=False)
+    otp_code = serializers.CharField(required=False, allow_blank=True)
 
 
 class VerifyOTPSerializer(serializers.Serializer):

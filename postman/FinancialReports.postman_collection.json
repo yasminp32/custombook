@@ -1,0 +1,198 @@
+{
+  "info": {
+    "name": "Techgeum Financial Reports",
+    "description": "Balance Sheet, Profit and Loss, and Cash Flow Statement. Run Login first. Do not leave a space after any URL. Balance Sheet defaults match the screenshot: as of Today, Cash basis, Accounts Without Zero Balance, Compare With None.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "access_token", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "0. Login",
+      "item": [
+        {
+          "name": "Login — saves access_token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.access || (json.data && json.data.access);",
+                  "if (token) { pm.collectionVariables.set('access_token', token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"your@email.com\",\n  \"password\": \"YourPassword\"\n}"
+            },
+            "url": "{{base_url}}/api/accounts/login/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Menu",
+      "item": [
+        { "name": "Financial reports index", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/" } },
+        { "name": "Financial reports options", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/options/" } }
+      ]
+    },
+    {
+      "name": "2. Balance Sheet",
+      "item": [
+        { "name": "Options", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/options/" } },
+        { "name": "Filter form", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/form/" } },
+        { "name": "Export form", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/export-form/" } },
+        { "name": "Run — screenshot defaults", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/?as_of_date=today&report_basis=cash&filter_accounts=without_zero_balance&compare_with=none" } },
+        {
+          "name": "Run Report POST",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"as_of_date\": \"today\",\n  \"report_basis\": \"cash\",\n  \"filter_accounts\": \"without_zero_balance\",\n  \"compare_with\": \"none\"\n}"
+            },
+            "url": "{{base_url}}/api/reports/financial/balance-sheet/run/"
+          }
+        },
+        { "name": "As of end of this month", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/?as_of_date=end_of_this_month&report_basis=cash" } },
+        { "name": "As of end of previous month", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/?as_of_date=end_of_previous_month" } },
+        { "name": "As of end of this quarter", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/?as_of_date=end_of_this_quarter" } },
+        { "name": "As of end of this year", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/?as_of_date=end_of_this_year" } },
+        { "name": "Report date override", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/?as_of_date=today&report_date=2026-09-16" } },
+        { "name": "Basis Accrual", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/?report_basis=accrual" } },
+        { "name": "All Accounts", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/?filter_accounts=all_accounts" } },
+        { "name": "Compare Previous Period", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/?compare_with=previous_period" } },
+        { "name": "Compare Previous Year", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/?compare_with=previous_year" } },
+        { "name": "Export JSON", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/export/?export_format=json&as_of_date=today&report_basis=cash" } },
+        { "name": "Export CSV", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/export/?export_format=csv" } },
+        { "name": "Export PDF", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/export/?export_format=pdf&export_file_name=Balance_Sheet&language=en" } },
+        {
+          "name": "Export PDF with layout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"as_of_date\": \"today\",\n  \"report_basis\": \"cash\",\n  \"filter_accounts\": \"without_zero_balance\",\n  \"export_format\": \"pdf\",\n  \"export_file_name\": \"Balance_Sheet\",\n  \"language\": \"en\",\n  \"display\": {\n    \"organization_name\": true,\n    \"organization_details\": false,\n    \"report_basis\": true,\n    \"page_number\": false,\n    \"generated_by\": false,\n    \"generated_date\": false,\n    \"generated_time\": false\n  },\n  \"column_headers_on_each_page\": true,\n  \"temporary_note\": \"\",\n  \"table_density\": \"compact\",\n  \"auto_resize_table\": true,\n  \"paper_size\": \"A4\",\n  \"orientation\": \"portrait\",\n  \"margins\": { \"top\": \"0.7\", \"bottom\": \"0.55\", \"left\": \"0.2\", \"right\": \"0.2\" }\n}"
+            },
+            "url": "{{base_url}}/api/reports/financial/balance-sheet/export/"
+          }
+        },
+        { "name": "Empty organization_id — 400", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/?organization_id=" } },
+        { "name": "Password without value — 400", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/balance-sheet/export/?password_protect=true" } }
+      ]
+    },
+    {
+      "name": "3. Profit and Loss",
+      "item": [
+        { "name": "Options", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/options/" } },
+        { "name": "Filter form", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/form/" } },
+        { "name": "Export form", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/export-form/" } },
+        { "name": "Run this month cash", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?date_range=this_month&report_basis=cash&filter_accounts=without_zero_balance&compare_with=none" } },
+        {
+          "name": "Run Report POST",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date_range\": \"this_month\",\n  \"report_basis\": \"cash\",\n  \"filter_accounts\": \"without_zero_balance\",\n  \"compare_with\": \"none\"\n}"
+            },
+            "url": "{{base_url}}/api/reports/financial/profit-and-loss/run/"
+          }
+        },
+        { "name": "Today", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?date_range=today" } },
+        { "name": "This Week", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?date_range=this_week" } },
+        { "name": "This Quarter", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?date_range=this_quarter" } },
+        { "name": "This Year", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?date_range=this_year" } },
+        { "name": "Previous Week", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?date_range=previous_week" } },
+        { "name": "Previous Month", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?date_range=previous_month" } },
+        { "name": "Custom dates", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?date_range=custom&date_from=2026-09-01&date_to=2026-09-30" } },
+        { "name": "Basis Accrual", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?date_range=this_month&report_basis=accrual" } },
+        { "name": "All Accounts", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?filter_accounts=all_accounts" } },
+        { "name": "Compare Previous Period", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?compare_with=previous_period" } },
+        { "name": "Compare Previous Year", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?compare_with=previous_year" } },
+        { "name": "Export JSON", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/export/?export_format=json&date_range=this_month&report_basis=cash" } },
+        { "name": "Export CSV", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/export/?export_format=csv" } },
+        { "name": "Export PDF", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/export/?export_format=pdf&export_file_name=Profit_and_Loss&language=en" } },
+        {
+          "name": "Export PDF with layout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date_range\": \"this_month\",\n  \"report_basis\": \"cash\",\n  \"export_format\": \"pdf\",\n  \"export_file_name\": \"Profit_and_Loss\",\n  \"language\": \"en\",\n  \"display\": {\n    \"organization_name\": true,\n    \"organization_details\": false,\n    \"report_basis\": true,\n    \"page_number\": false,\n    \"generated_by\": false,\n    \"generated_date\": false,\n    \"generated_time\": false\n  },\n  \"column_headers_on_each_page\": true,\n  \"table_density\": \"classic\",\n  \"auto_resize_table\": true,\n  \"paper_size\": \"A4\",\n  \"orientation\": \"portrait\",\n  \"margins\": { \"top\": \"0.7\", \"bottom\": \"0.55\", \"left\": \"0.2\", \"right\": \"0.2\" }\n}"
+            },
+            "url": "{{base_url}}/api/reports/financial/profit-and-loss/export/"
+          }
+        },
+        { "name": "Empty organization_id — 400", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/profit-and-loss/?organization_id=" } }
+      ]
+    },
+    {
+      "name": "4. Cash Flow Statement",
+      "item": [
+        { "name": "Options", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/options/" } },
+        { "name": "Filter form", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/form/" } },
+        { "name": "Export form", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/export-form/" } },
+        { "name": "Run this month cash", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?date_range=this_month&report_basis=cash&filter_accounts=without_zero_balance&compare_with=none" } },
+        {
+          "name": "Run Report POST",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date_range\": \"this_month\",\n  \"report_basis\": \"cash\",\n  \"filter_accounts\": \"without_zero_balance\",\n  \"compare_with\": \"none\"\n}"
+            },
+            "url": "{{base_url}}/api/reports/financial/cash-flow-statement/run/"
+          }
+        },
+        { "name": "Today", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?date_range=today" } },
+        { "name": "This Week", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?date_range=this_week" } },
+        { "name": "This Quarter", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?date_range=this_quarter" } },
+        { "name": "This Year", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?date_range=this_year" } },
+        { "name": "Previous Week", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?date_range=previous_week" } },
+        { "name": "Previous Month", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?date_range=previous_month" } },
+        { "name": "Custom dates", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?date_range=custom&date_from=2026-09-01&date_to=2026-09-30" } },
+        { "name": "Basis Accrual", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?date_range=this_month&report_basis=accrual" } },
+        { "name": "All Accounts", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?filter_accounts=all_accounts" } },
+        { "name": "Compare Previous Period", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?compare_with=previous_period" } },
+        { "name": "Compare Previous Year", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?compare_with=previous_year" } },
+        { "name": "Export JSON", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/export/?export_format=json&date_range=this_month&report_basis=cash" } },
+        { "name": "Export CSV", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/export/?export_format=csv" } },
+        { "name": "Export PDF", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/export/?export_format=pdf&export_file_name=Cash_Flow_Statement&language=en" } },
+        {
+          "name": "Export PDF with layout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date_range\": \"this_month\",\n  \"report_basis\": \"cash\",\n  \"export_format\": \"pdf\",\n  \"export_file_name\": \"Cash_Flow_Statement\",\n  \"language\": \"en\",\n  \"display\": {\n    \"organization_name\": true,\n    \"organization_details\": false,\n    \"report_basis\": true,\n    \"page_number\": false,\n    \"generated_by\": false,\n    \"generated_date\": false,\n    \"generated_time\": false\n  },\n  \"column_headers_on_each_page\": true,\n  \"table_density\": \"classic\",\n  \"auto_resize_table\": true,\n  \"paper_size\": \"A4\",\n  \"orientation\": \"portrait\",\n  \"margins\": { \"top\": \"0.7\", \"bottom\": \"0.55\", \"left\": \"0.2\", \"right\": \"0.2\" }\n}"
+            },
+            "url": "{{base_url}}/api/reports/financial/cash-flow-statement/export/"
+          }
+        },
+        { "name": "Empty organization_id — 400", "request": { "method": "GET", "url": "{{base_url}}/api/reports/financial/cash-flow-statement/?organization_id=" } }
+      ]
+    }
+  ]
+}

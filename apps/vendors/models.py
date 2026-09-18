@@ -22,6 +22,9 @@ class Vendor(TimeStampedModel):
         blank=True,
     )
     display_name = models.CharField(max_length=200, blank=True)
+    company_name = models.CharField(max_length=200, blank=True)
+    email = models.EmailField(max_length=255, blank=True)
+    phone = models.CharField(max_length=30, blank=True)
     gstin = models.CharField(max_length=15, blank=True)
     payment_term = models.ForeignKey(
         PaymentTerm,
@@ -33,6 +36,7 @@ class Vendor(TimeStampedModel):
     opening_balance = models.DecimalField(
         max_digits=19,
         decimal_places=4,
+        default=0,
         null=True,
         blank=True,
     )
@@ -55,7 +59,15 @@ class Vendor(TimeStampedModel):
         ordering = ["display_name"]
 
     def __str__(self):
-        return self.display_name or str(self.id)
+        return self.display_name or self.company_name or str(self.id)
+
+    @property
+    def name(self):
+        return self.display_name or self.company_name or ""
+
+    @property
+    def payables(self):
+        return self.opening_balance or 0
 
 
 class VendorPayment(TimeStampedModel):

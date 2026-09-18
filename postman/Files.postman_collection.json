@@ -1,0 +1,215 @@
+{
+  "info": {
+    "name": "Techgeum Files",
+    "description": "Run in order: 0 Login → 1 Form → 2 Upload (form-data file). Type filters and sort are GET only. Use file_id from upload. Do not send empty file_id or a trailing space in the URL. .txt files are type Other.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "access_token", "value": "" },
+    { "key": "file_id", "value": "" },
+    { "key": "share_token", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "0. Login",
+      "item": [
+        {
+          "name": "Login — saves access_token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.access || (json.data && json.data.access);",
+                  "if (token) { pm.collectionVariables.set('access_token', token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"your@email.com\",\n  \"password\": \"YourPassword\"\n}"
+            },
+            "url": "{{base_url}}/api/accounts/login/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Form and options",
+      "item": [
+        {
+          "name": "Form — Upload File",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/form/" }
+        },
+        {
+          "name": "Options — types and sort",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/options/" }
+        }
+      ]
+    },
+    {
+      "name": "2. Upload",
+      "item": [
+        {
+          "name": "Upload file — form-data",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.file_id) {",
+                  "  pm.collectionVariables.set('file_id', json.data.file_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [] },
+                { "key": "folder", "type": "text", "value": "All documents" }
+              ]
+            },
+            "url": "{{base_url}}/api/files/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. List, filter, sort, search",
+      "item": [
+        {
+          "name": "All Files",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/" }
+        },
+        {
+          "name": "Filter All Types",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/?type=all_types" }
+        },
+        {
+          "name": "Filter PDF",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/?type=pdf" }
+        },
+        {
+          "name": "Filter Image",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/?type=image" }
+        },
+        {
+          "name": "Filter Spreadsheet",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/?type=spreadsheet" }
+        },
+        {
+          "name": "Filter Document",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/?type=document" }
+        },
+        {
+          "name": "Filter Other",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/?type=other" }
+        },
+        {
+          "name": "Sort Uploaded Time descending",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/?sort_by=uploaded_time&sort_order=desc" }
+        },
+        {
+          "name": "Sort Name ascending",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/?sort_by=name&sort_order=asc" }
+        },
+        {
+          "name": "Sort Size descending",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/?sort_by=size&sort_order=desc" }
+        },
+        {
+          "name": "Search Invoice",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/?search=Invoice" }
+        },
+        {
+          "name": "Get one file",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/?file_id={{file_id}}" }
+        }
+      ]
+    },
+    {
+      "name": "4. Download, share, refresh",
+      "item": [
+        {
+          "name": "Download",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/download/?file_id={{file_id}}" }
+        },
+        {
+          "name": "Share",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.share_token) {",
+                  "  pm.collectionVariables.set('share_token', json.data.share_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{base_url}}/api/files/share/?file_id={{file_id}}"
+          }
+        },
+        {
+          "name": "Refresh",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{base_url}}/api/files/refresh/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Errors and delete",
+      "item": [
+        {
+          "name": "Empty file_id — 400",
+          "request": { "method": "GET", "url": "{{base_url}}/api/files/?file_id=" }
+        },
+        {
+          "name": "Upload without file — 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{base_url}}/api/files/"
+          }
+        },
+        {
+          "name": "Delete",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/files/?file_id={{file_id}}"
+          }
+        }
+      ]
+    }
+  ]
+}
