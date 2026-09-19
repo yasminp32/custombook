@@ -4,7 +4,11 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from apps.accounts.countries import get_registration_options, get_states_for_country
+from apps.accounts.countries import (
+    get_country_states_payload,
+    get_registration_options,
+    is_valid_country,
+)
 from apps.accounts.responses import api_error, api_success
 from apps.accounts.serializers import (
     CustomTokenObtainPairSerializer,
@@ -33,12 +37,24 @@ class CountryStatesView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, country_code):
-        return api_success(
-            data={
-                "country": country_code.upper(),
-                "states": get_states_for_country(country_code),
-            }
-        )
+        if not is_valid_country(country_code):
+            return api_error("Unsupported country.")
+        return api_success(data=get_country_states_payload(country_code))
+
+
+class StatesView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        if "country" not in request.query_params:
+            return api_error("country is required.")
+        country = request.query_params.get("country")
+        if country is None or not str(country).strip():
+            return api_error("country cannot be empty.")
+        country = str(country).strip()
+        if not is_valid_country(country):
+            return api_error("Unsupported country.")
+        return api_success(data=get_country_states_payload(country))
 
 
 class RegisterView(APIView):

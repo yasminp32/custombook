@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from apps.accounts.views import (
     CountryStatesView,
     ForgotPasswordView,
+    StatesView,
     LoginView,
     MeView,
     RegisterView,
@@ -15,6 +16,7 @@ from apps.accounts.views import (
 urlpatterns = [
     path("registration-options/", RegistrationOptionsView.as_view(), name="registration-options"),
     path("countries/<str:country_code>/states/", CountryStatesView.as_view(), name="country-states"),
+    path("states/", StatesView.as_view(), name="states"),
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", LoginView.as_view(), name="login"),
     path("verify-otp/", VerifyOTPView.as_view(), name="verify-otp"),
