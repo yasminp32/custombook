@@ -155,35 +155,16 @@ def build_sales_by_sales_person(organization, start, end):
 
 
 def build_customer_balance(organization, start, end):
-    del start, end
-    customers = Customer.objects.filter(organization=organization)
-    invoices = Invoice.objects.filter(organization=organization).filter(OPEN_INVOICE)
-    results = []
-    total = ZERO
-    for customer in customers:
-        billed = ZERO
-        paid = ZERO
-        for invoice in invoices.filter(customer=customer):
-            billed += Decimal(invoice.total_amount or 0)
-            paid += Decimal(invoice.amount_paid or 0)
-        opening = Decimal(customer.opening_balance or 0)
-        balance = opening + billed - paid
-        if balance == 0 and billed == 0 and opening == 0:
-            continue
-        total += balance
-        name = customer.display_name or customer.company_name or ""
-        results.append(
-            {
-                "customer_id": customer.id,
-                "customer_name": name,
-                "opening_balance": money(opening),
-                "invoiced": money(billed),
-                "paid": money(paid),
-                "balance": money(balance),
-            }
-        )
-    results.sort(key=lambda row: Decimal(row["balance"]), reverse=True)
-    return {"rows": results, "total": money(total)}
+    from apps.reports.receivables import build_customer_balance_summary_report
+
+    return build_customer_balance_summary_report(
+        organization,
+        {
+            "date_range": "custom",
+            "date_from": start.isoformat(),
+            "date_to": end.isoformat(),
+        },
+    )
 
 
 def _aging_bucket(due_date, today):
@@ -202,64 +183,27 @@ def _aging_bucket(due_date, today):
 
 
 def build_ar_aging_summary(organization, start, end):
-    del start, end
-    today = date.today()
-    buckets = {
-        "current": ZERO,
-        "1_30": ZERO,
-        "31_60": ZERO,
-        "61_90": ZERO,
-        "90_plus": ZERO,
-    }
-    invoices = Invoice.objects.filter(organization=organization).filter(OPEN_INVOICE)
-    for invoice in invoices:
-        due = _balance_due(invoice.total_amount, invoice.amount_paid)
-        buckets[_aging_bucket(invoice.due_date, today)] += due
-    return {
-        "rows": [
-            {"bucket": "current", "label": "Current", "amount": money(buckets["current"])},
-            {"bucket": "1_30", "label": "1-30 Days", "amount": money(buckets["1_30"])},
-            {"bucket": "31_60", "label": "31-60 Days", "amount": money(buckets["31_60"])},
-            {"bucket": "61_90", "label": "61-90 Days", "amount": money(buckets["61_90"])},
-            {"bucket": "90_plus", "label": "90+ Days", "amount": money(buckets["90_plus"])},
-        ],
-        "total": money(sum(buckets.values(), ZERO)),
-    }
+    from apps.reports.receivables import build_ar_aging_summary_report
+
+    return build_ar_aging_summary_report(
+        organization,
+        {
+            "as_of_date": "today",
+            "report_date": end.isoformat(),
+        },
+    )
 
 
 def build_ar_aging_details(organization, start, end):
-    del start, end
-    today = date.today()
-    invoices = (
-        Invoice.objects.filter(organization=organization)
-        .filter(OPEN_INVOICE)
-        .select_related("customer")
-        .order_by("due_date", "invoice_number")
+    from apps.reports.receivables import build_ar_aging_details_report
+
+    return build_ar_aging_details_report(
+        organization,
+        {
+            "as_of_date": "today",
+            "report_date": end.isoformat(),
+        },
     )
-    rows = []
-    total = ZERO
-    for invoice in invoices:
-        due = _balance_due(invoice.total_amount, invoice.amount_paid)
-        if due <= 0:
-            continue
-        total += due
-        days = (today - invoice.due_date).days if invoice.due_date else 0
-        name = ""
-        if invoice.customer:
-            name = invoice.customer.display_name or invoice.customer.company_name or ""
-        rows.append(
-            {
-                "invoice_id": invoice.id,
-                "invoice_number": invoice.invoice_number,
-                "customer_name": name,
-                "invoice_date": invoice.invoice_date.isoformat() if invoice.invoice_date else None,
-                "due_date": invoice.due_date.isoformat() if invoice.due_date else None,
-                "days_overdue": max(days, 0),
-                "bucket": _aging_bucket(invoice.due_date, today),
-                "balance": money(due),
-            }
-        )
-    return {"rows": rows, "total": money(total)}
 
 
 def build_payments_received(organization, start, end):

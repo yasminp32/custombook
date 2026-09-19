@@ -19,6 +19,25 @@ from apps.reports.financial_views import (
     ProfitAndLossOptionsView,
     ProfitAndLossView,
 )
+from apps.reports.receivables_views import (
+    CustomerBalanceSummaryExportFormView,
+    CustomerBalanceSummaryExportView,
+    CustomerBalanceSummaryFormView,
+    CustomerBalanceSummaryOptionsView,
+    CustomerBalanceSummaryView,
+    ReceivableReportIndexView,
+    ReceivableReportOptionsView,
+    ARAgingDetailsExportFormView,
+    ARAgingDetailsExportView,
+    ARAgingDetailsFormView,
+    ARAgingDetailsOptionsView,
+    ARAgingDetailsView,
+    ARAgingSummaryExportFormView,
+    ARAgingSummaryExportView,
+    ARAgingSummaryFormView,
+    ARAgingSummaryOptionsView,
+    ARAgingSummaryView,
+)
 from apps.reports.sales_views import (
     SalesByCustomerExportFormView,
     SalesByCustomerExportView,
@@ -235,5 +254,101 @@ urlpatterns = [
         "sales/sales-by-sales-person/export/",
         SalesBySalesPersonExportView.as_view(),
         name="sales-by-sales-person-export",
+    ),
+    path("receivables/", ReceivableReportIndexView.as_view(), name="receivable-reports"),
+    path(
+        "receivables/options/",
+        ReceivableReportOptionsView.as_view(),
+        name="receivable-reports-options",
+    ),
+    path(
+        "receivables/customer-balance-summary/",
+        CustomerBalanceSummaryView.as_view(),
+        name="customer-balance-summary",
+    ),
+    path(
+        "receivables/customer-balance-summary/options/",
+        CustomerBalanceSummaryOptionsView.as_view(),
+        name="customer-balance-summary-options",
+    ),
+    path(
+        "receivables/customer-balance-summary/form/",
+        CustomerBalanceSummaryFormView.as_view(),
+        name="customer-balance-summary-form",
+    ),
+    path(
+        "receivables/customer-balance-summary/run/",
+        CustomerBalanceSummaryView.as_view(),
+        name="customer-balance-summary-run",
+    ),
+    path(
+        "receivables/customer-balance-summary/export-form/",
+        CustomerBalanceSummaryExportFormView.as_view(),
+        name="customer-balance-summary-export-form",
+    ),
+    path(
+        "receivables/customer-balance-summary/export/",
+        CustomerBalanceSummaryExportView.as_view(),
+        name="customer-balance-summary-export",
+    ),
+    path(
+        "receivables/ar-aging-summary/",
+        ARAgingSummaryView.as_view(),
+        name="ar-aging-summary",
+    ),
+    path(
+        "receivables/ar-aging-summary/options/",
+        ARAgingSummaryOptionsView.as_view(),
+        name="ar-aging-summary-options",
+    ),
+    path(
+        "receivables/ar-aging-summary/form/",
+        ARAgingSummaryFormView.as_view(),
+        name="ar-aging-summary-form",
+    ),
+    path(
+        "receivables/ar-aging-summary/run/",
+        ARAgingSummaryView.as_view(),
+        name="ar-aging-summary-run",
+    ),
+    path(
+        "receivables/ar-aging-summary/export-form/",
+        ARAgingSummaryExportFormView.as_view(),
+        name="ar-aging-summary-export-form",
+    ),
+    path(
+        "receivables/ar-aging-summary/export/",
+        ARAgingSummaryExportView.as_view(),
+        name="ar-aging-summary-export",
+    ),
+    path(
+        "receivables/ar-aging-details/",
+        ARAgingDetailsView.as_view(),
+        name="ar-aging-details",
+    ),
+    path(
+        "receivables/ar-aging-details/options/",
+        ARAgingDetailsOptionsView.as_view(),
+        name="ar-aging-details-options",
+    ),
+    path(
+        "receivables/ar-aging-details/form/",
+        ARAgingDetailsFormView.as_view(),
+        name="ar-aging-details-form",
+    ),
+    path(
+        "receivables/ar-aging-details/run/",
+        ARAgingDetailsView.as_view(),
+        name="ar-aging-details-run",
+    ),
+    path(
+        "receivables/ar-aging-details/export-form/",
+        ARAgingDetailsExportFormView.as_view(),
+        name="ar-aging-details-export-form",
+    ),
+    path(
+        "receivables/ar-aging-details/export/",
+        ARAgingDetailsExportView.as_view(),
+        name="ar-aging-details-export",
     ),
 ]

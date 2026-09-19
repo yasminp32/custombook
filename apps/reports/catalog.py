@@ -59,11 +59,20 @@ SALES_PATHS = {
 }
 
 
+RECEIVABLE_PATHS = {
+    "customer_balance_summary": "/api/reports/receivables/customer-balance-summary/",
+    "ar_aging_summary": "/api/reports/receivables/ar-aging-summary/",
+    "ar_aging_details": "/api/reports/receivables/ar-aging-details/",
+}
+
+
 def report_path(key):
     if key in FINANCIAL_PATHS:
         return FINANCIAL_PATHS[key]
     if key in SALES_PATHS:
         return SALES_PATHS[key]
+    if key in RECEIVABLE_PATHS:
+        return RECEIVABLE_PATHS[key]
     return f"/api/reports/?report_key={key}"
 
 
