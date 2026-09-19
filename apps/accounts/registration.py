@@ -15,9 +15,11 @@ def register_user_with_organization(validated_data):
     state = validated_data.pop("state", "")
     terms_accepted = validated_data.pop("terms_accepted")
 
+    skip_email_otp = settings.SKIP_EMAIL_OTP
     user = User.objects.create_user(
         **validated_data,
         terms_accepted_at=timezone.now() if terms_accepted else None,
+        is_email_verified=skip_email_otp,
     )
 
     organization = None
@@ -30,14 +32,18 @@ def register_user_with_organization(validated_data):
             owner=user,
         )
 
-    otp = create_and_send_otp(user)
-    email_sent = getattr(otp, "email_sent", True)
     payload = {
         "user": user,
         "organization": organization,
         "data_center": get_data_center_for_country(country),
-        "email_sent": email_sent,
+        "email_sent": False,
+        "skip_email_otp": skip_email_otp,
     }
-    if settings.DEBUG and not email_sent:
+    if skip_email_otp:
+        return payload
+
+    otp = create_and_send_otp(user)
+    payload["email_sent"] = getattr(otp, "email_sent", True)
+    if settings.DEBUG and not payload["email_sent"]:
         payload["otp_code"] = otp.code
     return payload

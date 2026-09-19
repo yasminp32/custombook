@@ -133,6 +133,7 @@ class RegisterResponseSerializer(serializers.Serializer):
     organization = OrganizationSerializer(allow_null=True)
     data_center = serializers.CharField()
     email_sent = serializers.BooleanField(required=False)
+    skip_email_otp = serializers.BooleanField(required=False)
     otp_code = serializers.CharField(required=False, allow_blank=True)
 
 
@@ -195,7 +196,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 raise serializers.ValidationError(get_lockout_message(user)) from exc
             raise
 
-        if not self.user.is_email_verified:
+        if not self.user.is_email_verified and not settings.SKIP_EMAIL_OTP:
             raise serializers.ValidationError("Email is not verified. Please verify your OTP.")
 
         reset_login_security(self.user)

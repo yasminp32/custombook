@@ -30,3 +30,5 @@ services:
         value: https://*.onrender.com
       - key: DB_SSL_REQUIRE
         value: "True"
+      - key: SKIP_EMAIL_OTP
+        value: "True"

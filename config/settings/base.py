@@ -158,6 +158,7 @@ DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@techgeum.com"
 
 # OTP
 OTP_EXPIRY_MINUTES = config("OTP_EXPIRY_MINUTES", default=10, cast=int)
+SKIP_EMAIL_OTP = config("SKIP_EMAIL_OTP", default=False, cast=bool)
 
 # Login security
 MAX_FAILED_LOGIN_ATTEMPTS = config("MAX_FAILED_LOGIN_ATTEMPTS", default=5, cast=int)
