@@ -33,13 +33,17 @@ def require_organization(request):
             "Organization not found. Complete organization setup first.",
             status_code=400,
         )
+    return organization, None
+
+
+def validate_period(request):
     period = (request.query_params.get("period") or "this_fiscal_year").strip().lower()
     if period not in PERIOD_CHOICES:
-        return None, api_error(
+        return api_error(
             "Invalid period.",
             errors={"period": f"Allowed values: {', '.join(PERIOD_CHOICES)}."},
         )
-    return organization, None
+    return None
 
 
 class DashboardOverviewView(APIView):
@@ -59,6 +63,9 @@ class DashboardCashFlowView(APIView):
         organization, error_response = require_organization(request)
         if error_response:
             return error_response
+        period_error = validate_period(request)
+        if period_error:
+            return period_error
         return api_success(data=build_cash_flow(organization, request.query_params))
 
 
@@ -69,6 +76,9 @@ class DashboardIncomeExpenseView(APIView):
         organization, error_response = require_organization(request)
         if error_response:
             return error_response
+        period_error = validate_period(request)
+        if period_error:
+            return period_error
         method = (request.query_params.get("accounting_method") or "accrual").lower()
         if method not in ("accrual", "cash"):
             return api_error(
@@ -95,6 +105,9 @@ class DashboardExpenseBreakdownView(APIView):
         organization, error_response = require_organization(request)
         if error_response:
             return error_response
+        period_error = validate_period(request)
+        if period_error:
+            return period_error
         return api_success(data=build_expense_breakdown(organization, request.query_params))
 
 

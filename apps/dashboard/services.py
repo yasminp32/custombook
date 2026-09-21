@@ -175,10 +175,7 @@ def relative_time(published_at, now=None):
 def dashboard_header(context, active_tab):
     return {
         "title": "Business Overview",
-        "snapshot_label": f"Snapshot • {context['period_label']}",
-        "period": context["period"],
-        "period_label": context["period_label"],
-        "available_periods": available_periods(),
+        "snapshot_label": "Snapshot",
         "tabs": DASHBOARD_TABS,
         "active_tab": active_tab,
     }
@@ -230,7 +227,7 @@ def _monthly_totals(queryset, start, end):
 
 
 def build_overview(organization, query_params):
-    context = resolve_period(organization, query_params)
+    context = resolve_period(organization, {"period": "this_fiscal_year"})
     start, end = context["start"], context["end"]
 
     incoming = _sum(_customer_payments(organization, start, end))
@@ -380,12 +377,9 @@ def build_income_expense(organization, query_params):
 
 
 def build_projects(organization, query_params):
-    context = resolve_period(organization, query_params)
+    context = resolve_period(organization, {"period": "this_fiscal_year"})
     return {
         "title": "Project Summary",
-        "period": context["period"],
-        "period_label": context["period_label"],
-        "available_periods": available_periods(),
         "currency": context["currency"],
         "timer": "00:00:00",
         "associated_project": None,
@@ -457,7 +451,7 @@ def build_expense_breakdown(organization, query_params):
 
 
 def build_updates(organization, query_params):
-    context = resolve_period(organization, query_params)
+    context = resolve_period(organization, {"period": "this_fiscal_year"})
     now = timezone.now()
     updates = []
     unread_count = 0
@@ -487,7 +481,7 @@ def build_updates(organization, query_params):
 
 
 def build_support(organization, query_params):
-    context = resolve_period(organization, query_params)
+    context = resolve_period(organization, {"period": "this_fiscal_year"})
     return {
         **dashboard_header(context, "support"),
         "heading": "How can we help you?",
