@@ -1,5 +1,28 @@
 from django.urls import path
 
+from apps.reports.payables_views import (
+    PayableReportIndexView,
+    PayableReportOptionsView,
+    PaymentsMadeExportFormView,
+    PaymentsMadeExportView,
+    PaymentsMadeFormView,
+    PaymentsMadeOptionsView,
+    PaymentsMadeView,
+    VendorBalanceSummaryExportFormView,
+    VendorBalanceSummaryExportView,
+    VendorBalanceSummaryFormView,
+    VendorBalanceSummaryOptionsView,
+    VendorBalanceSummaryView,
+)
+from apps.reports.expenses_views import (
+    ExpenseReportIndexView,
+    ExpenseReportOptionsView,
+    ExpensesByCategoryExportFormView,
+    ExpensesByCategoryExportView,
+    ExpensesByCategoryFormView,
+    ExpensesByCategoryOptionsView,
+    ExpensesByCategoryView,
+)
 from apps.reports.financial_views import (
     BalanceSheetExportFormView,
     BalanceSheetExportView,
@@ -37,6 +60,11 @@ from apps.reports.receivables_views import (
     ARAgingSummaryFormView,
     ARAgingSummaryOptionsView,
     ARAgingSummaryView,
+    PaymentsReceivedExportFormView,
+    PaymentsReceivedExportView,
+    PaymentsReceivedFormView,
+    PaymentsReceivedOptionsView,
+    PaymentsReceivedView,
 )
 from apps.reports.sales_views import (
     SalesByCustomerExportFormView,
@@ -350,5 +378,137 @@ urlpatterns = [
         "receivables/ar-aging-details/export/",
         ARAgingDetailsExportView.as_view(),
         name="ar-aging-details-export",
+    ),
+    path(
+        "receivables/payments-received/",
+        PaymentsReceivedView.as_view(),
+        name="payments-received-report",
+    ),
+    path(
+        "receivables/payments-received/options/",
+        PaymentsReceivedOptionsView.as_view(),
+        name="payments-received-report-options",
+    ),
+    path(
+        "receivables/payments-received/form/",
+        PaymentsReceivedFormView.as_view(),
+        name="payments-received-report-form",
+    ),
+    path(
+        "receivables/payments-received/run/",
+        PaymentsReceivedView.as_view(),
+        name="payments-received-report-run",
+    ),
+    path(
+        "receivables/payments-received/export-form/",
+        PaymentsReceivedExportFormView.as_view(),
+        name="payments-received-report-export-form",
+    ),
+    path(
+        "receivables/payments-received/export/",
+        PaymentsReceivedExportView.as_view(),
+        name="payments-received-report-export",
+    ),
+    path("expenses/", ExpenseReportIndexView.as_view(), name="expense-reports"),
+    path(
+        "expenses/options/",
+        ExpenseReportOptionsView.as_view(),
+        name="expense-reports-options",
+    ),
+    path(
+        "expenses/expenses-by-category/",
+        ExpensesByCategoryView.as_view(),
+        name="expenses-by-category",
+    ),
+    path(
+        "expenses/expenses-by-category/options/",
+        ExpensesByCategoryOptionsView.as_view(),
+        name="expenses-by-category-options",
+    ),
+    path(
+        "expenses/expenses-by-category/form/",
+        ExpensesByCategoryFormView.as_view(),
+        name="expenses-by-category-form",
+    ),
+    path(
+        "expenses/expenses-by-category/run/",
+        ExpensesByCategoryView.as_view(),
+        name="expenses-by-category-run",
+    ),
+    path(
+        "expenses/expenses-by-category/export-form/",
+        ExpensesByCategoryExportFormView.as_view(),
+        name="expenses-by-category-export-form",
+    ),
+    path(
+        "expenses/expenses-by-category/export/",
+        ExpensesByCategoryExportView.as_view(),
+        name="expenses-by-category-export",
+    ),
+    path("payables/", PayableReportIndexView.as_view(), name="payable-reports"),
+    path(
+        "payables/options/",
+        PayableReportOptionsView.as_view(),
+        name="payable-reports-options",
+    ),
+    path(
+        "payables/payments-made/",
+        PaymentsMadeView.as_view(),
+        name="payments-made-report",
+    ),
+    path(
+        "payables/payments-made/options/",
+        PaymentsMadeOptionsView.as_view(),
+        name="payments-made-report-options",
+    ),
+    path(
+        "payables/payments-made/form/",
+        PaymentsMadeFormView.as_view(),
+        name="payments-made-report-form",
+    ),
+    path(
+        "payables/payments-made/run/",
+        PaymentsMadeView.as_view(),
+        name="payments-made-report-run",
+    ),
+    path(
+        "payables/payments-made/export-form/",
+        PaymentsMadeExportFormView.as_view(),
+        name="payments-made-report-export-form",
+    ),
+    path(
+        "payables/payments-made/export/",
+        PaymentsMadeExportView.as_view(),
+        name="payments-made-report-export",
+    ),
+    path(
+        "payables/vendor-balance-summary/",
+        VendorBalanceSummaryView.as_view(),
+        name="vendor-balance-summary",
+    ),
+    path(
+        "payables/vendor-balance-summary/options/",
+        VendorBalanceSummaryOptionsView.as_view(),
+        name="vendor-balance-summary-options",
+    ),
+    path(
+        "payables/vendor-balance-summary/form/",
+        VendorBalanceSummaryFormView.as_view(),
+        name="vendor-balance-summary-form",
+    ),
+    path(
+        "payables/vendor-balance-summary/run/",
+        VendorBalanceSummaryView.as_view(),
+        name="vendor-balance-summary-run",
+    ),
+    path(
+        "payables/vendor-balance-summary/export-form/",
+        VendorBalanceSummaryExportFormView.as_view(),
+        name="vendor-balance-summary-export-form",
+    ),
+    path(
+        "payables/vendor-balance-summary/export/",
+        VendorBalanceSummaryExportView.as_view(),
+        name="vendor-balance-summary-export",
     ),
 ]

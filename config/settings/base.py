@@ -160,6 +160,15 @@ DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@techgeum.com"
 OTP_EXPIRY_MINUTES = config("OTP_EXPIRY_MINUTES", default=10, cast=int)
 SKIP_EMAIL_OTP = config("SKIP_EMAIL_OTP", default=False, cast=bool)
 
+# Password reset
+PASSWORD_RESET_EXPIRY_MINUTES = config(
+    "PASSWORD_RESET_EXPIRY_MINUTES", default=30, cast=int
+)
+FRONTEND_PASSWORD_RESET_URL = config(
+    "FRONTEND_PASSWORD_RESET_URL",
+    default="http://127.0.0.1:3000/reset-password",
+)
+
 # Login security
 MAX_FAILED_LOGIN_ATTEMPTS = config("MAX_FAILED_LOGIN_ATTEMPTS", default=5, cast=int)
 ACCOUNT_LOCKOUT_MINUTES = config("ACCOUNT_LOCKOUT_MINUTES", default=30, cast=int)

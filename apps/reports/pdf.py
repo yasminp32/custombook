@@ -62,6 +62,10 @@ def build_financial_pdf(report, export_options, generated_by=""):
             "Customer Balance Summary": "Customer Balance Summary",
             "AR Aging Summary": "AR Aging Summary",
             "AR Aging Details": "AR Aging Details",
+            "Payments Received": "Payments Received",
+            "Expenses by Category": "Expenses by Category",
+            "Payments Made": "Payments Made",
+            "Vendor Balance Summary": "Vendor Balance Summary",
         }
         title = title_map.get(title, title)
 

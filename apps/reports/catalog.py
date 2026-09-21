@@ -63,6 +63,18 @@ RECEIVABLE_PATHS = {
     "customer_balance_summary": "/api/reports/receivables/customer-balance-summary/",
     "ar_aging_summary": "/api/reports/receivables/ar-aging-summary/",
     "ar_aging_details": "/api/reports/receivables/ar-aging-details/",
+    "payments_received": "/api/reports/receivables/payments-received/",
+}
+
+
+EXPENSE_PATHS = {
+    "expenses_by_category": "/api/reports/expenses/expenses-by-category/",
+}
+
+
+PAYABLE_PATHS = {
+    "payments_made": "/api/reports/payables/payments-made/",
+    "vendor_balance_summary": "/api/reports/payables/vendor-balance-summary/",
 }
 
 
@@ -73,6 +85,10 @@ def report_path(key):
         return SALES_PATHS[key]
     if key in RECEIVABLE_PATHS:
         return RECEIVABLE_PATHS[key]
+    if key in EXPENSE_PATHS:
+        return EXPENSE_PATHS[key]
+    if key in PAYABLE_PATHS:
+        return PAYABLE_PATHS[key]
     return f"/api/reports/?report_key={key}"
 
 

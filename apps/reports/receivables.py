@@ -38,6 +38,13 @@ RECEIVABLE_REPORTS = (
         "form_path": "/api/reports/receivables/ar-aging-details/form/",
         "export_path": "/api/reports/receivables/ar-aging-details/export/",
     },
+    {
+        "key": "payments_received",
+        "label": "Payments Received",
+        "path": "/api/reports/receivables/payments-received/",
+        "form_path": "/api/reports/receivables/payments-received/form/",
+        "export_path": "/api/reports/receivables/payments-received/export/",
+    },
 )
 
 EMPTY_BALANCE_MESSAGE = "There were no customer balances for the selected date range."
@@ -601,6 +608,126 @@ def build_ar_aging_details_report(organization, filters):
                 "amount_display": currency_amount(symbol, total_amount),
                 "label": "Total",
                 "is_section": False,
+                "is_total": True,
+            }
+        )
+    return payload
+
+
+EMPTY_PAYMENTS_RECEIVED_MESSAGE = "There are no transactions during the selected date range."
+
+
+def payments_received_form_payload():
+    return receivables_date_form_payload(
+        "Payments Received",
+        "/api/reports/receivables/payments-received/export-form/",
+    )
+
+
+def build_payments_received_report(organization, filters):
+    country = getattr(organization, "country", None) or "IN"
+    date_range = (filters.get("date_range") or "this_month").strip().lower()
+    start, end = resolve_date_range(
+        date_range,
+        filters.get("date_from"),
+        filters.get("date_to"),
+        country=country,
+    )
+    symbol = organization_payload(organization)["currency_symbol"]
+    payments = (
+        PaymentReceived.objects.filter(
+            organization=organization,
+            payment_date__range=(start, end),
+        )
+        .select_related("customer")
+        .order_by("payment_date", "payment_number")
+    )
+
+    rows = []
+    total_amount = ZERO
+    total_unused = ZERO
+    for payment in payments:
+        amount = money(payment.amount)
+        unused = money(payment.unused_amount)
+        total_amount += amount
+        total_unused += unused
+        status = "Unapplied" if unused > ZERO else "Paid"
+        mode = payment.get_payment_mode_display() if payment.payment_mode else ""
+        rows.append(
+            {
+                "payment_id": str(payment.id),
+                "payment_number": payment.payment_number or "",
+                "date": payment.payment_date.isoformat() if payment.payment_date else "",
+                "date_display": format_report_date(payment.payment_date)
+                if payment.payment_date
+                else "",
+                "status": status,
+                "reference_number": payment.reference_number or "",
+                "customer_name": customer_name(payment.customer)
+                if payment.customer
+                else "",
+                "payment_mode": mode,
+                "amount": money_text(amount),
+                "amount_display": currency_amount(symbol, amount),
+                "unused_amount": money_text(unused),
+                "unused_amount_display": currency_amount(symbol, unused),
+                "label": payment.payment_number or "",
+                "is_total": False,
+            }
+        )
+
+    payload = organization_payload(organization)
+    payload.update(
+        {
+            "key": "payments_received",
+            "title": "Payments Received",
+            "section": "receivables",
+            "section_label": "Receivables",
+            "date_range": date_range,
+            "date_from": start.isoformat(),
+            "date_to": end.isoformat(),
+            "date_from_display": format_report_date(start),
+            "date_to_display": format_report_date(end),
+            "period_display": f"From {format_report_date(start)} To {format_report_date(end)}",
+            "basis_label": "Basis: Cash",
+            "columns": [
+                {"key": "payment_number", "label": "PAYMENT NUMBER"},
+                {"key": "date", "label": "DATE"},
+                {"key": "status", "label": "STATUS"},
+                {"key": "reference_number", "label": "REFERENCE NUMBER"},
+                {"key": "customer_name", "label": "CUSTOMER NAME"},
+                {"key": "payment_mode", "label": "PAYMENT MODE"},
+                {"key": "amount", "label": "AMOUNT"},
+                {"key": "unused_amount", "label": "UNUSED AMOUNT"},
+            ],
+            "rows": rows,
+            "empty": len(rows) == 0,
+            "empty_message": EMPTY_PAYMENTS_RECEIVED_MESSAGE if not rows else "",
+            "totals": {
+                "label": "Total",
+                "amount": money_text(total_amount),
+                "amount_display": currency_amount(symbol, total_amount),
+                "unused_amount": money_text(total_unused),
+                "unused_amount_display": currency_amount(symbol, total_unused),
+            },
+        }
+    )
+    if rows:
+        rows.append(
+            {
+                "payment_id": None,
+                "payment_number": "Total",
+                "date": "",
+                "date_display": "",
+                "status": "",
+                "reference_number": "",
+                "customer_name": "",
+                "payment_mode": "",
+                "amount": money_text(total_amount),
+                "amount_display": currency_amount(symbol, total_amount),
+                "unused_amount": money_text(total_unused),
+                "unused_amount_display": currency_amount(symbol, total_unused),
+                "label": "Total",
                 "is_total": True,
             }
         )
