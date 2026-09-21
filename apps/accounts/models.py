@@ -67,7 +67,7 @@ class PasswordResetToken(models.Model):
         on_delete=models.CASCADE,
         related_name="password_reset_tokens",
     )
-    reset_token = models.CharField(max_length=255, unique=True)
+    otp = models.CharField(max_length=6)
     is_used = models.BooleanField(default=False)
     used_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField()

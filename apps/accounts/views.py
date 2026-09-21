@@ -20,7 +20,7 @@ from apps.accounts.serializers import (
     UserSerializer,
     VerifyOTPSerializer,
 )
-from apps.accounts.password_reset import create_and_send_password_reset, reset_password_with_token
+from apps.accounts.password_reset import create_and_send_password_reset, reset_password_with_otp
 from apps.accounts.services import verify_otp
 
 User = get_user_model()
@@ -123,7 +123,7 @@ class ForgotPasswordView(APIView):
         return api_success(
             message=(
                 "If an account with that email exists, "
-                "a password reset link has been sent."
+                "a password reset code has been sent."
             )
         )
 
@@ -136,13 +136,15 @@ class ResetPasswordView(APIView):
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors)
 
-        user = reset_password_with_token(
-            serializer.validated_data["reset_token"],
+        email = User.objects.normalize_email(serializer.validated_data["email"])
+        user = reset_password_with_otp(
+            User.objects.filter(email=email, is_email_verified=True).first(),
+            serializer.validated_data["otp"],
             serializer.validated_data["password"],
         )
         if not user:
             return api_error(
-                "Invalid or expired reset token.",
+                "Invalid or expired reset code.",
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
 

@@ -50,7 +50,7 @@ class EmailOTPAdmin(admin.ModelAdmin):
 
 @admin.register(PasswordResetToken)
 class PasswordResetTokenAdmin(admin.ModelAdmin):
-    list_display = ("user", "is_used", "expires_at", "used_at", "created_at")
+    list_display = ("user", "otp", "is_used", "expires_at", "used_at", "created_at")
     list_filter = ("is_used",)
-    search_fields = ("user__email", "reset_token")
+    search_fields = ("user__email", "otp")
     readonly_fields = ("created_at",)
