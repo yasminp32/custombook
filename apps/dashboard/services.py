@@ -1,15 +1,28 @@
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
 
-from apps.customers.models import Customer, CustomerPayment
+from apps.bills.models import Bill
+from apps.customers.models import CustomerPayment
 from apps.dashboard.periods import PERIOD_CHOICES, PERIOD_LABELS, get_period_range, month_points_for_range
-from apps.vendors.models import Vendor, VendorPayment
+from apps.invoices.models import Invoice
+from apps.vendors.models import VendorPayment
 
 ZERO = Decimal("0.00")
+MONEY = Decimal("0.01")
+ACTIVE_INVOICE = ~Q(status__in=(Invoice.Status.DRAFT, Invoice.Status.CANCELLED))
+ACTIVE_BILL = ~Q(status=Bill.Status.DRAFT)
+CURRENCY_SYMBOLS = {"INR": "₹", "USD": "$", "EUR": "€", "GBP": "£", "AED": "د.إ"}
+
+DASHBOARD_AGING_BUCKETS = (
+    ("days_1_15", "1-15 Days"),
+    ("days_16_30", "16-30 Days"),
+    ("days_31_45", "31-45 Days"),
+    ("days_over_45", "> 45 Days"),
+)
 
 QUICK_ACTIONS = [
     {"key": "new_customer", "label": "New Customer", "path": "/api/customers/"},
@@ -136,12 +149,141 @@ EXPENSE_COLORS = [
 
 
 def money(value):
-    amount = Decimal(value or 0).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    amount = Decimal(value or 0).quantize(MONEY, rounding=ROUND_HALF_UP)
     return f"{amount:.2f}"
+
+
+def money_amount(value):
+    return Decimal(value or 0).quantize(MONEY, rounding=ROUND_HALF_UP)
+
+
+def money_display(value, symbol="₹"):
+    return f"{symbol}{money_amount(value):,.2f}"
 
 
 def _sum(queryset, field="amount"):
     return queryset.aggregate(total=Coalesce(Sum(field), ZERO))["total"] or ZERO
+
+
+def empty_dashboard_aging():
+    return {
+        "current": ZERO,
+        "days_1_15": ZERO,
+        "days_16_30": ZERO,
+        "days_31_45": ZERO,
+        "days_over_45": ZERO,
+    }
+
+
+def dashboard_aging_bucket(due_date, as_of):
+    if not due_date or due_date >= as_of:
+        return "current"
+    days = (as_of - due_date).days
+    if days <= 15:
+        return "days_1_15"
+    if days <= 30:
+        return "days_16_30"
+    if days <= 45:
+        return "days_31_45"
+    return "days_over_45"
+
+
+def balance_detail_payload(amounts, symbol):
+    overdue = (
+        amounts["days_1_15"]
+        + amounts["days_16_30"]
+        + amounts["days_31_45"]
+        + amounts["days_over_45"]
+    )
+    total = amounts["current"] + overdue
+    return {
+        "total": money(total),
+        "total_display": money_display(total, symbol),
+        "current": money(amounts["current"]),
+        "current_display": money_display(amounts["current"], symbol),
+        "overdue": money(overdue),
+        "overdue_display": money_display(overdue, symbol),
+        "overdue_split": {
+            "days_1_15": {
+                "label": "1-15 Days",
+                "amount": money(amounts["days_1_15"]),
+                "amount_display": money_display(amounts["days_1_15"], symbol),
+            },
+            "days_16_30": {
+                "label": "16-30 Days",
+                "amount": money(amounts["days_16_30"]),
+                "amount_display": money_display(amounts["days_16_30"], symbol),
+            },
+            "days_31_45": {
+                "label": "31-45 Days",
+                "amount": money(amounts["days_31_45"]),
+                "amount_display": money_display(amounts["days_31_45"], symbol),
+            },
+            "days_over_45": {
+                "label": "> 45 Days",
+                "amount": money(amounts["days_over_45"]),
+                "amount_display": money_display(amounts["days_over_45"], symbol),
+            },
+        },
+    }
+
+
+def build_receivables_detail(organization, as_of=None):
+    as_of = as_of or date.today()
+    currency = organization.currency or "INR"
+    symbol = CURRENCY_SYMBOLS.get(currency, currency)
+    amounts = empty_dashboard_aging()
+    overdue_count = 0
+
+    invoices = (
+        Invoice.objects.filter(
+            organization=organization,
+            invoice_date__lte=as_of,
+        )
+        .filter(ACTIVE_INVOICE)
+        .exclude(status=Invoice.Status.PAID)
+    )
+    for invoice in invoices:
+        due = money_amount(invoice.total_amount) - money_amount(invoice.amount_paid)
+        if due <= ZERO:
+            continue
+        bucket = dashboard_aging_bucket(invoice.due_date or invoice.invoice_date, as_of)
+        amounts[bucket] += due
+        if bucket != "current":
+            overdue_count += 1
+
+    detail = balance_detail_payload(amounts, symbol)
+    detail["overdue_count"] = overdue_count
+    return detail
+
+
+def build_payables_detail(organization, as_of=None):
+    as_of = as_of or date.today()
+    currency = organization.currency or "INR"
+    symbol = CURRENCY_SYMBOLS.get(currency, currency)
+    amounts = empty_dashboard_aging()
+    overdue_count = 0
+
+    bills = (
+        Bill.objects.filter(
+            organization=organization,
+            bill_date__lte=as_of,
+        )
+        .filter(ACTIVE_BILL)
+        .exclude(status=Bill.Status.PAID)
+    )
+    for bill in bills:
+        due = money_amount(bill.amount) - money_amount(bill.amount_paid)
+        if due <= ZERO:
+            continue
+        bucket = dashboard_aging_bucket(bill.due_date or bill.bill_date, as_of)
+        amounts[bucket] += due
+        if bucket != "current":
+            overdue_count += 1
+
+    detail = balance_detail_payload(amounts, symbol)
+    detail["overdue_count"] = overdue_count
+    return detail
 
 
 def available_periods():
@@ -232,8 +374,8 @@ def build_overview(organization, query_params):
 
     incoming = _sum(_customer_payments(organization, start, end))
     outgoing = _sum(_vendor_payments(organization, start, end))
-    receivables = _sum(Customer.objects.filter(organization=organization), "opening_balance")
-    payables = _sum(Vendor.objects.filter(organization=organization), "opening_balance")
+    receivables_detail = build_receivables_detail(organization)
+    payables_detail = build_payables_detail(organization)
 
     all_incoming = _customer_payments(organization)
     bank_balance = _sum(all_incoming.exclude(bank_account_id=None))
@@ -244,10 +386,20 @@ def build_overview(organization, query_params):
         "start_date": context["start_date"],
         "end_date": context["end_date"],
         "currency": context["currency"],
-        "receivables": money(receivables),
-        "payables": money(payables),
-        "overdue_invoices_count": 0,
-        "overdue_bills_count": 0,
+        "receivables": receivables_detail["total"],
+        "receivables_display": receivables_detail["total_display"],
+        "receivables_detail": {
+            "title": "Total Receivables",
+            **receivables_detail,
+        },
+        "payables": payables_detail["total"],
+        "payables_display": payables_detail["total_display"],
+        "payables_detail": {
+            "title": "Total Payables",
+            **payables_detail,
+        },
+        "overdue_invoices_count": receivables_detail["overdue_count"],
+        "overdue_bills_count": payables_detail["overdue_count"],
         "bank_balance": money(bank_balance),
         "cash_in_hand": money(cash_in_hand),
         "income_total": money(incoming),
