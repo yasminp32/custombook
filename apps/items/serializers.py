@@ -26,6 +26,7 @@ class ItemSerializer(serializers.ModelSerializer):
     cost_price = serializers.SerializerMethodField()
     margin = serializers.SerializerMethodField()
     opening_stock = serializers.SerializerMethodField()
+    stock_on_hand = serializers.SerializerMethodField()
     rate_per_unit = serializers.SerializerMethodField()
 
     class Meta:
@@ -55,6 +56,7 @@ class ItemSerializer(serializers.ModelSerializer):
             "track_inventory",
             "inventory_account",
             "opening_stock",
+            "stock_on_hand",
             "rate_per_unit",
             "valuation_method",
             "margin",
@@ -88,6 +90,9 @@ class ItemSerializer(serializers.ModelSerializer):
         return money(obj.margin)
 
     def get_opening_stock(self, obj):
+        return money(obj.opening_stock)
+
+    def get_stock_on_hand(self, obj):
         return money(obj.opening_stock)
 
     def get_rate_per_unit(self, obj):
