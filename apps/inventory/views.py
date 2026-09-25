@@ -357,7 +357,7 @@ class InventoryAdjustmentCommentView(APIView):
                     status_code=status.HTTP_400_BAD_REQUEST,
                 )
 
-        queryset = adjustment.activities.select_related("created_by").order_by("-created_at")
+        queryset = adjustment.activities.select_related("created_by").order_by("created_at")
         if activity_type != "all":
             queryset = queryset.filter(activity_type=activity_type)
 
