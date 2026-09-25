@@ -1,9 +1,20 @@
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.utils import timezone
 from rest_framework import serializers
 
-from apps.inventory.models import InventoryAdjustment, InventoryAdjustmentLine
-from apps.inventory.services import apply_stock, display_name_for_user, refresh_totals
+from apps.attachments.models import Attachment
+from apps.inventory.models import (
+    InventoryAdjustment,
+    InventoryAdjustmentActivity,
+    InventoryAdjustmentLine,
+)
+from apps.inventory.services import (
+    ATTACHABLE_TYPE,
+    apply_stock,
+    display_name_for_user,
+    refresh_totals,
+)
 from apps.items.models import Item
 from apps.organizations.models import Organization
 
@@ -97,6 +108,8 @@ class InventoryAdjustmentSerializer(serializers.ModelSerializer):
     adjustment_value = serializers.SerializerMethodField()
     direction = serializers.SerializerMethodField()
     currency = serializers.SerializerMethodField()
+    attachments_count = serializers.SerializerMethodField()
+    comments_count = serializers.SerializerMethodField()
     lines = InventoryAdjustmentLineSerializer(many=True, read_only=True)
 
     class Meta:
@@ -120,6 +133,8 @@ class InventoryAdjustmentSerializer(serializers.ModelSerializer):
             "direction",
             "currency",
             "stock_applied",
+            "attachments_count",
+            "comments_count",
             "lines",
             "created_by",
             "created_at",
@@ -156,6 +171,59 @@ class InventoryAdjustmentSerializer(serializers.ModelSerializer):
         if obj.organization and obj.organization.currency:
             return obj.organization.currency
         return "INR"
+
+    def get_attachments_count(self, obj):
+        annotated = getattr(obj, "attachments_total", None)
+        if annotated is not None:
+            return annotated
+        return Attachment.objects.filter(
+            organization_id=obj.organization_id,
+            attachable_type=ATTACHABLE_TYPE,
+            attachable_id=obj.id,
+        ).count()
+
+    def get_comments_count(self, obj):
+        annotated = getattr(obj, "comments_total", None)
+        if annotated is not None:
+            return annotated
+        return obj.activities.filter(
+            activity_type=InventoryAdjustmentActivity.ActivityType.COMMENT
+        ).count()
+
+
+class InventoryAdjustmentActivitySerializer(serializers.ModelSerializer):
+    activity_id = serializers.UUIDField(source="id", read_only=True)
+    adjustment_id = serializers.UUIDField(read_only=True)
+    activity_type_label = serializers.CharField(
+        source="get_activity_type_display",
+        read_only=True,
+    )
+    created_by = serializers.UUIDField(source="created_by_id", read_only=True, allow_null=True)
+    created_by_name = serializers.SerializerMethodField()
+    created_at_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InventoryAdjustmentActivity
+        fields = (
+            "activity_id",
+            "adjustment_id",
+            "activity_type",
+            "activity_type_label",
+            "message",
+            "created_by",
+            "created_by_name",
+            "created_at",
+            "created_at_label",
+        )
+        read_only_fields = fields
+
+    def get_created_by_name(self, obj):
+        return display_name_for_user(obj.created_by)
+
+    def get_created_at_label(self, obj):
+        if not obj.created_at:
+            return ""
+        return timezone.localtime(obj.created_at).strftime("%d %b %Y %I:%M %p")
 
 
 class InventoryAdjustmentWriteSerializer(serializers.ModelSerializer):

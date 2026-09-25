@@ -105,3 +105,36 @@ class InventoryAdjustmentLine(models.Model):
 
     def __str__(self):
         return f"{self.adjustment_id}:{self.item_id}"
+
+
+class InventoryAdjustmentActivity(TimeStampedModel):
+    class ActivityType(models.TextChoices):
+        COMMENT = "comment", "Comment"
+        HISTORY = "history", "History"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    adjustment = models.ForeignKey(
+        InventoryAdjustment,
+        on_delete=models.CASCADE,
+        related_name="activities",
+    )
+    activity_type = models.CharField(
+        max_length=20,
+        choices=ActivityType.choices,
+        default=ActivityType.HISTORY,
+    )
+    message = models.TextField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="inventory_adjustment_activities",
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "inventory_adjustment_activities"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.message[:80]

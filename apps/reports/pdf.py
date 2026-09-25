@@ -207,7 +207,6 @@ def build_financial_pdf(report, export_options, generated_by=""):
         y -= 11
     pages.append((page_number, commands))
 
-    font_obj = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
     content_streams = []
     for number, page_commands in pages:
         stream = "\n".join(page_commands)
@@ -218,6 +217,11 @@ def build_financial_pdf(report, export_options, generated_by=""):
             )
         content_streams.append(stream)
 
+    return render_pdf(content_streams, width, height)
+
+
+def render_pdf(content_streams, width, height):
+    font_obj = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
     pdf = io.BytesIO()
     offsets = [0]
 
@@ -236,7 +240,7 @@ def build_financial_pdf(report, export_options, generated_by=""):
 
     pdf.write(b"%PDF-1.4\n")
     write_obj("<< /Type /Catalog /Pages 2 0 R >>")
-    total_pages = len(pages)
+    total_pages = len(content_streams)
     kids = " ".join(f"{4 + i * 2} 0 R" for i in range(total_pages))
     write_obj(f"<< /Type /Pages /Kids [{kids}] /Count {total_pages} >>")
     write_obj(font_obj)

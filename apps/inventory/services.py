@@ -4,9 +4,24 @@ from django.db import transaction
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 
-from apps.inventory.models import InventoryAdjustment
+from apps.inventory.models import InventoryAdjustment, InventoryAdjustmentActivity
 
 ZERO = Decimal("0.00")
+ATTACHABLE_TYPE = "inventory_adjustment"
+
+
+def log_activity(
+    adjustment,
+    message,
+    user=None,
+    activity_type=InventoryAdjustmentActivity.ActivityType.HISTORY,
+):
+    return InventoryAdjustmentActivity.objects.create(
+        adjustment=adjustment,
+        activity_type=activity_type,
+        message=message,
+        created_by=user,
+    )
 
 
 def display_name_for_user(user, organization=None):
