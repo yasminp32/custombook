@@ -154,7 +154,7 @@ class VendorWriteSerializer(serializers.ModelSerializer):
         email = getattr(user, "email", None)
         if not email:
             return None
-        return User.objects.filter(email__iexact=email).first()
+        return User.objects.filter(email__iexact=email, organization__owner=user).first()
 
     def create(self, validated_data):
         payment_term_id = validated_data.pop("payment_term_id", None)
@@ -225,16 +225,12 @@ class VendorPaymentWriteSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        organization_id = validated_data.pop("organization_id", None)
+        validated_data.pop("organization_id", None)
+        validated_data.pop("organization", None)
         vendor_id = validated_data.pop("vendor_id")
         vendor = Vendor.objects.get(pk=vendor_id)
-        organization = (
-            Organization.objects.filter(pk=organization_id).first()
-            if organization_id
-            else vendor.organization
-        )
         return VendorPayment.objects.create(
-            organization=organization,
+            organization=vendor.organization,
             vendor=vendor,
             **validated_data,
         )

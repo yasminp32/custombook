@@ -22,6 +22,12 @@ from apps.accounts.serializers import (
 )
 from apps.accounts.password_reset import create_and_send_password_reset, reset_password_with_otp
 from apps.accounts.services import verify_otp
+from apps.accounts.throttles import (
+    ForgotPasswordThrottle,
+    ResetPasswordThrottle,
+    ThrottledResponseMixin,
+    VerifyOTPThrottle,
+)
 
 User = get_user_model()
 
@@ -83,8 +89,9 @@ class RegisterView(APIView):
         )
 
 
-class VerifyOTPView(APIView):
+class VerifyOTPView(ThrottledResponseMixin, APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [VerifyOTPThrottle]
 
     def post(self, request):
         serializer = VerifyOTPSerializer(data=request.data)
@@ -107,8 +114,9 @@ class VerifyOTPView(APIView):
         return api_error("Invalid or expired OTP")
 
 
-class ForgotPasswordView(APIView):
+class ForgotPasswordView(ThrottledResponseMixin, APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ForgotPasswordThrottle]
 
     def post(self, request):
         serializer = ForgotPasswordSerializer(data=request.data)
@@ -128,8 +136,9 @@ class ForgotPasswordView(APIView):
         )
 
 
-class ResetPasswordView(APIView):
+class ResetPasswordView(ThrottledResponseMixin, APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ResetPasswordThrottle]
 
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)

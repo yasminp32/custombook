@@ -178,7 +178,10 @@ class ItemWriteSerializer(serializers.ModelSerializer):
     def validate_created_by_reference(self, user):
         if not user:
             return None
-        return User.objects.filter(email__iexact=user.email).first()
+        return User.objects.filter(
+            email__iexact=user.email,
+            organization__owner=user,
+        ).first()
 
     def _current(self, attrs, field, default=None):
         if field in attrs:

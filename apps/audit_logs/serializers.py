@@ -3,8 +3,6 @@ from rest_framework import serializers
 
 from apps.audit_logs.models import AuditLog
 from apps.organizations.models import Organization
-from apps.users.models import User
-
 
 class AuditLogSerializer(serializers.ModelSerializer):
     audit_log_id = serializers.IntegerField(source="id", read_only=True)
@@ -57,21 +55,14 @@ class AuditLogWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Organization not found.")
         return value
 
-    def validate_user_id(self, value):
-        if value and not User.objects.filter(pk=value).exists():
-            raise serializers.ValidationError("User not found.")
-        return value
-
     def create(self, validated_data):
         organization_id = validated_data.pop("organization_id", None)
-        user_id = validated_data.pop("user_id", None)
+        validated_data.pop("user_id", None)
         organization = validated_data.pop("organization", None)
         user = validated_data.pop("user", None)
 
         if organization_id and not organization:
             organization = Organization.objects.filter(pk=organization_id).first()
-        if user_id and not user:
-            user = User.objects.filter(pk=user_id).first()
 
         if not validated_data.get("occurred_at"):
             validated_data["occurred_at"] = timezone.now()

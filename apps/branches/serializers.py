@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.branches.models import Address, Branch
+from apps.branches.models import Address, Branch, addresses_owned_by
 
 
 class AddressSerializer(serializers.ModelSerializer):
@@ -80,12 +80,13 @@ class BranchWriteSerializer(serializers.ModelSerializer):
             if address_id is None:
                 attrs["address"] = None
             else:
-                try:
-                    attrs["address"] = Address.objects.get(pk=address_id)
-                except Address.DoesNotExist as exc:
-                    raise serializers.ValidationError(
-                        {"address_id": "Address not found."}
-                    ) from exc
+                request = self.context.get("request")
+                address = addresses_owned_by(getattr(request, "user", None)).filter(
+                    pk=address_id
+                ).first()
+                if not address:
+                    raise serializers.ValidationError({"address_id": "Address not found."})
+                attrs["address"] = address
         elif address_data is not serializers.empty:
             attrs["address"] = address_data
 

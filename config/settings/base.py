@@ -164,6 +164,7 @@ SKIP_EMAIL_OTP = config("SKIP_EMAIL_OTP", default=False, cast=bool)
 PASSWORD_RESET_EXPIRY_MINUTES = config(
     "PASSWORD_RESET_EXPIRY_MINUTES", default=30, cast=int
 )
+PASSWORD_RESET_MAX_ATTEMPTS = config("PASSWORD_RESET_MAX_ATTEMPTS", default=5, cast=int)
 FRONTEND_PASSWORD_RESET_URL = config(
     "FRONTEND_PASSWORD_RESET_URL",
     default="http://127.0.0.1:3000/reset-password",
@@ -188,6 +189,11 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ),
+    "DEFAULT_THROTTLE_RATES": {
+        "forgot_password": config("THROTTLE_FORGOT_PASSWORD", default="5/hour"),
+        "reset_password": config("THROTTLE_RESET_PASSWORD", default="10/hour"),
+        "verify_otp": config("THROTTLE_VERIFY_OTP", default="10/hour"),
+    },
 }
 
 # JWT

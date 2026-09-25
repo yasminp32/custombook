@@ -10,7 +10,11 @@ from apps.accounts.responses import api_error, api_success
 from apps.attachments.filters import AttachmentFilter
 from apps.attachments.models import Attachment
 from apps.attachments.serializers import AttachmentSerializer, AttachmentWriteSerializer
-from apps.attachments.storage import delete_stored_file, save_uploaded_file
+from apps.attachments.storage import (
+    delete_stored_file,
+    is_organization_storage_key,
+    save_uploaded_file,
+)
 from apps.organizations.models import Organization
 from apps.organizations.pagination import paginate_queryset
 
@@ -90,7 +94,10 @@ class AttachmentView(APIView):
             )
 
         uploaded_file = request.FILES.get("file")
-        serializer = AttachmentWriteSerializer(data=request.data)
+        serializer = AttachmentWriteSerializer(
+            data=request.data,
+            context={"organization_id": organization.id},
+        )
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors)
 
@@ -177,6 +184,8 @@ class AttachmentView(APIView):
             pk=attachment_id,
         )
         storage_key = attachment.storage_key
+        organization_id = attachment.organization_id
         attachment.delete()
-        delete_stored_file(storage_key)
+        if is_organization_storage_key(storage_key, organization_id):
+            delete_stored_file(storage_key)
         return api_success(message="Attachment deleted successfully.")

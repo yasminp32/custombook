@@ -26,6 +26,15 @@ class Address(TimeStampedModel):
         return self.address_line1 or str(self.id)
 
 
+def addresses_owned_by(user):
+    if not user or not user.is_authenticated:
+        return Address.objects.none()
+    return Address.objects.filter(
+        models.Q(branches__organization__owner=user)
+        | models.Q(customer_addresses__customer__organization__owner=user)
+    ).distinct()
+
+
 class Branch(TimeStampedModel):
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"

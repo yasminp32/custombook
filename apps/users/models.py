@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 
 from apps.accounts.models import TimeStampedModel
+from apps.organizations.models import Organization
 
 
 class User(TimeStampedModel):
@@ -11,7 +12,14 @@ class User(TimeStampedModel):
         INACTIVE = "inactive", "Inactive"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = models.EmailField(max_length=254, unique=True)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="team_users",
+        null=True,
+        blank=True,
+    )
+    email = models.EmailField(max_length=254)
     password_hash = models.CharField(max_length=255, blank=True)
     full_name = models.CharField(max_length=200, blank=True)
     status = models.CharField(
@@ -24,6 +32,12 @@ class User(TimeStampedModel):
     class Meta:
         db_table = "users"
         ordering = ["email"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "email"],
+                name="unique_organization_user_email",
+            ),
+        ]
 
     def __str__(self):
         return self.email

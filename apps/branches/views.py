@@ -86,7 +86,7 @@ class BranchView(APIView):
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
 
-        serializer = BranchWriteSerializer(data=request.data)
+        serializer = BranchWriteSerializer(data=request.data, context={"request": request})
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors)
 
@@ -103,7 +103,7 @@ class BranchView(APIView):
             return error_response
 
         branch = get_branch_for_user(request, branch_id)
-        serializer = BranchWriteSerializer(data=request.data)
+        serializer = BranchWriteSerializer(data=request.data, context={"request": request})
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors)
 
@@ -119,7 +119,11 @@ class BranchView(APIView):
             return error_response
 
         branch = get_branch_for_user(request, branch_id)
-        serializer = BranchWriteSerializer(data=request.data, partial=True)
+        serializer = BranchWriteSerializer(
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors)
 

@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from apps.organizations.models import Organization
 from apps.attachments.models import Attachment
+from apps.attachments.storage import is_organization_storage_key
 
 
 class AttachmentSerializer(serializers.ModelSerializer):
@@ -56,6 +57,21 @@ class AttachmentWriteSerializer(serializers.ModelSerializer):
 
     def validate_attachable_type(self, value):
         return value.strip().lower() if value else ""
+
+    def validate_storage_key(self, value):
+        value = (value or "").strip()
+        if not value:
+            return value
+        if self.instance is not None and value == self.instance.storage_key:
+            return value
+        organization_id = (
+            self.instance.organization_id
+            if self.instance is not None
+            else self.context.get("organization_id")
+        )
+        if not is_organization_storage_key(value, organization_id):
+            raise serializers.ValidationError("Invalid storage_key.")
+        return value
 
     def validate_organization_id(self, value):
         if value and not Organization.objects.filter(pk=value).exists():

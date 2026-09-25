@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from apps.accounts.countries import COUNTRY_NAMES, get_states_for_country
-from apps.branches.models import Address
+from apps.branches.models import Address, addresses_owned_by
 from apps.branches.serializers import AddressSerializer
 from apps.customers.constants import (
     ACCOUNTS_RECEIVABLE,
@@ -558,7 +558,10 @@ class CustomerWriteSerializer(serializers.ModelSerializer):
     def validate_created_by_reference(self, user):
         if not user:
             return None
-        return User.objects.filter(email__iexact=user.email).first()
+        return User.objects.filter(
+            email__iexact=user.email,
+            organization__owner=user,
+        ).first()
 
     def validate(self, attrs):
         name = (attrs.pop("name", None) or "").strip()
@@ -744,12 +747,13 @@ class CustomerAddressWriteSerializer(serializers.ModelSerializer):
             if address_id is None:
                 attrs["address"] = None
             else:
-                try:
-                    attrs["address"] = Address.objects.get(pk=address_id)
-                except Address.DoesNotExist as exc:
-                    raise serializers.ValidationError(
-                        {"address_id": "Address not found."}
-                    ) from exc
+                request = self.context.get("request")
+                address = addresses_owned_by(getattr(request, "user", None)).filter(
+                    pk=address_id
+                ).first()
+                if not address:
+                    raise serializers.ValidationError({"address_id": "Address not found."})
+                attrs["address"] = address
         elif address_data is not serializers.empty:
             if isinstance(address_data, dict) and (
                 "street1" in address_data or "zip_code" in address_data or "attention" in address_data
@@ -850,17 +854,15 @@ class CustomerPaymentWriteSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         customer_id = attrs.get("customer_id")
-        organization_id = attrs.get("organization_id")
+        attrs.pop("organization_id", None)
+        organization_id = None
         payment_number = attrs.get("payment_number")
 
         if self.instance:
             organization_id = self.instance.organization_id
             payment_number = payment_number or self.instance.payment_number
         elif customer_id:
-            customer = Customer.objects.get(pk=customer_id)
-            if not organization_id:
-                attrs["organization_id"] = customer.organization_id
-                organization_id = customer.organization_id
+            organization_id = Customer.objects.get(pk=customer_id).organization_id
 
         if organization_id and payment_number:
             queryset = CustomerPayment.objects.filter(
@@ -877,16 +879,12 @@ class CustomerPaymentWriteSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        organization_id = validated_data.pop("organization_id", None)
+        validated_data.pop("organization_id", None)
+        validated_data.pop("organization", None)
         customer_id = validated_data.pop("customer_id")
         customer = Customer.objects.get(pk=customer_id)
-        organization = (
-            Organization.objects.filter(pk=organization_id).first()
-            if organization_id
-            else customer.organization
-        )
         return CustomerPayment.objects.create(
-            organization=organization,
+            organization=customer.organization,
             customer=customer,
             **validated_data,
         )

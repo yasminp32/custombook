@@ -22,7 +22,9 @@ class RolePermissionWriteSerializer(serializers.ModelSerializer):
         fields = ("role_id", "module", "permission_level")
 
     def validate_role_id(self, value):
-        if not Role.objects.filter(pk=value).exists():
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not Role.objects.filter(pk=value, organization__owner=user).exists():
             raise serializers.ValidationError("Role not found.")
         return value
 

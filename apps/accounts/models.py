@@ -68,6 +68,7 @@ class PasswordResetToken(models.Model):
         related_name="password_reset_tokens",
     )
     otp = models.CharField(max_length=6)
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
     is_used = models.BooleanField(default=False)
     used_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField()

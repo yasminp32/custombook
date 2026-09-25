@@ -24,11 +24,12 @@ def resolve_organization(user, organization_id=None):
 
 
 def resolve_audit_user(auth_user, user_id=None):
-    if user_id:
-        return User.objects.filter(pk=user_id).first()
     if not auth_user:
         return None
-    return User.objects.filter(email__iexact=auth_user.email).first()
+    team_users = User.objects.filter(organization__owner=auth_user)
+    if user_id:
+        return team_users.filter(pk=user_id).first()
+    return team_users.filter(email__iexact=auth_user.email).first()
 
 
 def get_audit_log_queryset(user):
@@ -90,10 +91,10 @@ class AuditLogView(APIView):
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors)
 
-        audit_user = resolve_audit_user(
-            request.user,
-            serializer.validated_data.get("user_id"),
-        )
+        user_id = serializer.validated_data.get("user_id")
+        audit_user = resolve_audit_user(request.user, user_id)
+        if user_id and not audit_user:
+            return api_error("Validation error", errors={"user_id": ["User not found."]})
         audit_log = serializer.save(organization=organization, user=audit_user)
         return api_success(
             data=AuditLogSerializer(audit_log).data,

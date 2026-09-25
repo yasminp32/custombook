@@ -790,7 +790,10 @@ class CustomerAddressView(APIView):
             return api_error("customer_id is required.", status_code=status.HTTP_400_BAD_REQUEST)
 
         customer = get_object_or_404(get_customer_queryset(request.user), pk=customer_id)
-        serializer = CustomerAddressWriteSerializer(data=request.data)
+        serializer = CustomerAddressWriteSerializer(
+            data=request.data,
+            context={"request": request},
+        )
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors)
 
@@ -817,7 +820,11 @@ class CustomerAddressView(APIView):
             get_customer_address_queryset(request.user),
             pk=customer_address_id,
         )
-        serializer = CustomerAddressWriteSerializer(customer_address, data=request.data)
+        serializer = CustomerAddressWriteSerializer(
+            customer_address,
+            data=request.data,
+            context={"request": request},
+        )
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors)
 
@@ -847,6 +854,7 @@ class CustomerAddressView(APIView):
             customer_address,
             data=request.data,
             partial=True,
+            context={"request": request},
         )
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors)

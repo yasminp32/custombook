@@ -1,5 +1,6 @@
+import hmac
 import logging
-import random
+import secrets
 import string
 from datetime import timedelta
 from urllib.parse import quote
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def generate_reset_otp(length=6):
-    return "".join(random.choices(string.digits, k=length))
+    return "".join(secrets.choice(string.digits) for _ in range(length))
 
 
 def cleanup_password_reset_tokens(user=None):
@@ -71,14 +72,22 @@ def reset_password_with_otp(user, otp, new_password):
     if not user:
         return None
 
-    try:
-        token = PasswordResetToken.objects.select_related("user").get(
-            user=user,
-            otp=otp,
-            is_used=False,
-            expires_at__gt=timezone.now(),
-        )
-    except PasswordResetToken.DoesNotExist:
+    token = (
+        PasswordResetToken.objects.select_related("user")
+        .filter(user=user, is_used=False, expires_at__gt=timezone.now())
+        .order_by("-created_at")
+        .first()
+    )
+    if not token:
+        return None
+
+    if not hmac.compare_digest(token.otp, str(otp or "")):
+        token.failed_attempts += 1
+        update_fields = ["failed_attempts"]
+        if token.failed_attempts >= settings.PASSWORD_RESET_MAX_ATTEMPTS:
+            token.is_used = True
+            update_fields.append("is_used")
+        token.save(update_fields=update_fields)
         return None
 
     user = token.user
