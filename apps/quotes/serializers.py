@@ -2,13 +2,15 @@ import re
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.attachments.models import Attachment
 from apps.customers.models import Customer
 from apps.items.models import Item
 from apps.organizations.models import Organization
-from apps.quotes.models import Quote, QuoteLine
+from apps.quotes.models import Quote, QuoteActivity, QuoteLine
+from apps.quotes.services import display_name_for_user
 
 ZERO = Decimal("0.00")
 QUOTE_NUMBER_RE = re.compile(r"^QT-(\d+)$", re.IGNORECASE)
@@ -99,6 +101,7 @@ class QuoteSerializer(serializers.ModelSerializer):
     currency = serializers.SerializerMethodField()
     line_items = QuoteLineSerializer(source="lines", many=True, read_only=True)
     attachments = serializers.SerializerMethodField()
+    comments_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Quote
@@ -129,6 +132,7 @@ class QuoteSerializer(serializers.ModelSerializer):
             "currency",
             "line_items",
             "attachments",
+            "comments_count",
             "created_by",
             "created_at",
             "updated_at",
@@ -176,6 +180,49 @@ class QuoteSerializer(serializers.ModelSerializer):
             }
             for row in rows
         ]
+
+    def get_comments_count(self, obj):
+        annotated = getattr(obj, "comments_total", None)
+        if annotated is not None:
+            return annotated
+        return obj.activities.filter(
+            activity_type=QuoteActivity.ActivityType.COMMENT
+        ).count()
+
+
+class QuoteActivitySerializer(serializers.ModelSerializer):
+    activity_id = serializers.UUIDField(source="id", read_only=True)
+    quote_id = serializers.UUIDField(read_only=True)
+    activity_type_label = serializers.CharField(
+        source="get_activity_type_display",
+        read_only=True,
+    )
+    created_by = serializers.UUIDField(source="created_by_id", read_only=True, allow_null=True)
+    created_by_name = serializers.SerializerMethodField()
+    created_at_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QuoteActivity
+        fields = (
+            "activity_id",
+            "quote_id",
+            "activity_type",
+            "activity_type_label",
+            "message",
+            "created_by",
+            "created_by_name",
+            "created_at",
+            "created_at_label",
+        )
+        read_only_fields = fields
+
+    def get_created_by_name(self, obj):
+        return display_name_for_user(obj.created_by)
+
+    def get_created_at_label(self, obj):
+        if not obj.created_at:
+            return ""
+        return timezone.localtime(obj.created_at).strftime("%d %b %Y %I:%M %p")
 
 
 class QuoteWriteSerializer(serializers.ModelSerializer):

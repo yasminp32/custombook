@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from apps.quotes.models import Quote, QuoteLine
+from apps.quotes.models import Quote, QuoteActivity, QuoteLine
+
+
+class QuoteActivityInline(admin.TabularInline):
+    model = QuoteActivity
+    extra = 0
+    readonly_fields = ("id", "created_at", "updated_at")
 
 
 class QuoteLineInline(admin.TabularInline):
@@ -29,4 +35,4 @@ class QuoteAdmin(admin.ModelAdmin):
         "customer__company_name",
     )
     readonly_fields = ("id", "created_at", "updated_at", "sent_at")
-    inlines = [QuoteLineInline]
+    inlines = [QuoteLineInline, QuoteActivityInline]

@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from django.db import IntegrityError
+from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -12,8 +13,11 @@ from apps.accounts.responses import api_error, api_success
 from apps.organizations.models import Organization
 from apps.organizations.pagination import paginate_queryset
 from apps.quotes.filters import QUOTE_STATUS_FILTERS, QUOTE_TAB_FILTERS, QuoteFilter
-from apps.quotes.models import Quote
-from apps.quotes.serializers import QuoteSerializer, QuoteWriteSerializer
+from apps.quotes.models import Quote, QuoteActivity
+from apps.quotes.serializers import QuoteActivitySerializer, QuoteSerializer, QuoteWriteSerializer
+from apps.quotes.services import log_activity
+
+ACTIVITY_TYPE_FILTERS = ("all", "comment", "history")
 
 SORT_FIELDS = {
     "created_time": "created_at",
@@ -32,11 +36,43 @@ def get_user_organizations(user):
 
 
 def get_quote_queryset(user):
-    return Quote.objects.filter(organization__owner=user).select_related(
-        "organization",
-        "customer",
-        "created_by",
-    ).prefetch_related("lines__item")
+    return (
+        Quote.objects.filter(organization__owner=user)
+        .select_related("organization", "customer", "created_by")
+        .prefetch_related("lines__item")
+        .annotate(
+            comments_total=Count(
+                "activities",
+                filter=Q(activities__activity_type=QuoteActivity.ActivityType.COMMENT),
+                distinct=True,
+            )
+        )
+    )
+
+
+def get_quote_from_request(request):
+    quote_id, error_response = get_quote_id_param(request)
+    if error_response:
+        return None, error_response
+    quote = get_quote_queryset(request.user).filter(pk=quote_id).first()
+    if not quote:
+        return None, api_error("Quote not found.", status_code=status.HTTP_404_NOT_FOUND)
+    return quote, None
+
+
+def log_quote_created(quote, user):
+    if quote.status == Quote.Status.SENT:
+        log_activity(quote, "Quote created.", user=user)
+        log_activity(quote, "Quote marked as SENT.", user=user)
+        return
+    log_activity(quote, f"Quote created as {quote.get_status_display()}.", user=user)
+
+
+def log_quote_updated(quote, previous_status, user):
+    if quote.status != previous_status:
+        log_activity(quote, f"Quote marked as {quote.get_status_display()}.", user=user)
+        return
+    log_activity(quote, "Quote updated.", user=user)
 
 
 def resolve_organization(user, organization_id=None):
@@ -152,6 +188,7 @@ class QuoteView(APIView):
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
 
+        log_quote_created(quote, request.user)
         quote = get_quote_queryset(request.user).get(pk=quote.pk)
         message = (
             "Quote sent successfully."
@@ -172,6 +209,7 @@ class QuoteView(APIView):
         if not quote:
             return api_error("Quote not found.", status_code=status.HTTP_404_NOT_FOUND)
 
+        previous_status = quote.status
         serializer = QuoteWriteSerializer(quote, data=request.data)
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors)
@@ -182,6 +220,7 @@ class QuoteView(APIView):
                 "Quote number already exists for this organization.",
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
+        log_quote_updated(quote, previous_status, request.user)
         quote = get_quote_queryset(request.user).get(pk=quote.pk)
         return api_success(
             data=QuoteSerializer(quote).data,
@@ -196,6 +235,7 @@ class QuoteView(APIView):
         if not quote:
             return api_error("Quote not found.", status_code=status.HTTP_404_NOT_FOUND)
 
+        previous_status = quote.status
         serializer = QuoteWriteSerializer(quote, data=request.data, partial=True)
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors)
@@ -206,6 +246,7 @@ class QuoteView(APIView):
                 "Quote number already exists for this organization.",
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
+        log_quote_updated(quote, previous_status, request.user)
         quote = get_quote_queryset(request.user).get(pk=quote.pk)
         return api_success(
             data=QuoteSerializer(quote).data,
@@ -270,6 +311,11 @@ class QuoteOptionsView(APIView):
                         "key": "export",
                         "label": "Export Quotes",
                         "path": "/api/quotes/export/",
+                    },
+                    {
+                        "key": "comments",
+                        "label": "Comments & History",
+                        "path": "/api/quotes/comments/",
                     },
                 ],
             }
@@ -356,6 +402,7 @@ class QuoteSendView(APIView):
         quote = get_quote_queryset(request.user).filter(pk=quote_id).first()
         if not quote:
             return api_error("Quote not found.", status_code=status.HTTP_404_NOT_FOUND)
+        previous_status = quote.status
         if not quote.lines.exists():
             return api_error(
                 "Add at least one line item before sending a quote.",
@@ -365,8 +412,69 @@ class QuoteSendView(APIView):
         if not quote.sent_at:
             quote.sent_at = timezone.now()
         quote.save(update_fields=["status", "sent_at", "updated_at"])
+        if previous_status != Quote.Status.SENT:
+            log_activity(quote, "Quote marked as SENT.", user=request.user)
+        else:
+            log_activity(quote, "Quote sent.", user=request.user)
         quote = get_quote_queryset(request.user).get(pk=quote.pk)
         return api_success(
             data=QuoteSerializer(quote).data,
             message="Quote sent successfully.",
+        )
+
+
+class QuoteCommentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        quote, error_response = get_quote_from_request(request)
+        if error_response:
+            return error_response
+
+        activity_type = "all"
+        if "type" in request.query_params:
+            activity_type = request.query_params.get("type", "").strip().lower()
+            if activity_type not in ACTIVITY_TYPE_FILTERS:
+                return api_error(
+                    "Invalid type.",
+                    errors={"type": f"Allowed values: {', '.join(ACTIVITY_TYPE_FILTERS)}."},
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+
+        queryset = quote.activities.select_related("created_by").order_by("created_at")
+        if activity_type != "all":
+            queryset = queryset.filter(activity_type=activity_type)
+
+        response = paginate_queryset(
+            request,
+            queryset,
+            serializer=QuoteActivitySerializer,
+        )
+        if response is not None:
+            return response
+        return api_success(data=[])
+
+    def post(self, request):
+        quote, error_response = get_quote_from_request(request)
+        if error_response:
+            return error_response
+
+        message = str(request.data.get("message") or request.data.get("comment") or "").strip()
+        if not message:
+            return api_error(
+                "Validation error",
+                errors={"message": "Comment message is required."},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        activity = log_activity(
+            quote,
+            message,
+            user=request.user,
+            activity_type=QuoteActivity.ActivityType.COMMENT,
+        )
+        return api_success(
+            data=QuoteActivitySerializer(activity).data,
+            message="Comment added successfully.",
+            status_code=status.HTTP_201_CREATED,
         )

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from apps.quotes.views import (
+    QuoteCommentView,
     QuoteExportView,
     QuoteOptionsView,
     QuoteRefreshView,
@@ -14,4 +15,5 @@ urlpatterns = [
     path("refresh/", QuoteRefreshView.as_view(), name="quote-refresh"),
     path("export/", QuoteExportView.as_view(), name="quote-export"),
     path("send/", QuoteSendView.as_view(), name="quote-send"),
+    path("comments/", QuoteCommentView.as_view(), name="quote-comments"),
 ]

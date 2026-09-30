@@ -120,3 +120,36 @@ class QuoteLine(models.Model):
 
     def __str__(self):
         return self.name or str(self.id)
+
+
+class QuoteActivity(TimeStampedModel):
+    class ActivityType(models.TextChoices):
+        COMMENT = "comment", "Comment"
+        HISTORY = "history", "History"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    quote = models.ForeignKey(
+        Quote,
+        on_delete=models.CASCADE,
+        related_name="activities",
+    )
+    activity_type = models.CharField(
+        max_length=20,
+        choices=ActivityType.choices,
+        default=ActivityType.HISTORY,
+    )
+    message = models.TextField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="quote_activities",
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "quote_activities"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return self.message[:80]
