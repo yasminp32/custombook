@@ -9,7 +9,17 @@ from rest_framework import serializers
 from apps.customers.models import Customer
 from apps.invoices.models import Invoice
 from apps.organizations.models import Organization
-from apps.payments_received.models import PaymentReceived, PaymentReceivedApplication
+from apps.attachments.models import Attachment
+from apps.payments_received.models import (
+    PaymentReceived,
+    PaymentReceivedActivity,
+    PaymentReceivedApplication,
+)
+from apps.payments_received.services import (
+    ATTACHABLE_TYPE,
+    deposit_account,
+    display_name_for_user,
+)
 
 ZERO = Decimal("0.00")
 PAYMENT_NUMBER_RE = re.compile(r"^PR-(\d+)$", re.IGNORECASE)
@@ -20,6 +30,9 @@ PAYMENT_MODE_ALIASES = {
     "bank transfer": "bank_transfer",
     "banktransfer": "bank_transfer",
     "card": "card",
+    "credit_card": "credit_card",
+    "credit card": "credit_card",
+    "creditcard": "credit_card",
     "cheque": "cheque",
     "check": "cheque",
     "upi": "upi",
@@ -115,8 +128,8 @@ def apply_amount_to_invoice(payment, invoice, amount):
     return application, apply_amount
 
 
-def reverse_application(application):
-    payment = application.payment
+def reverse_application(application, payment=None):
+    payment = payment or application.payment
     invoice = application.invoice
     amount = Decimal(application.amount or 0)
     application.delete()
@@ -131,14 +144,73 @@ class PaymentApplicationSerializer(serializers.ModelSerializer):
     invoice_id = serializers.UUIDField(read_only=True)
     invoice_number = serializers.CharField(source="invoice.invoice_number", read_only=True)
     amount = serializers.SerializerMethodField()
+    invoice_date = serializers.DateField(source="invoice.invoice_date", read_only=True)
+    invoice_date_label = serializers.SerializerMethodField()
+    invoice_amount = serializers.SerializerMethodField()
+    invoice_balance_due = serializers.SerializerMethodField()
 
     class Meta:
         model = PaymentReceivedApplication
-        fields = ("application_id", "invoice_id", "invoice_number", "amount")
+        fields = (
+            "application_id",
+            "invoice_id",
+            "invoice_number",
+            "amount",
+            "invoice_date",
+            "invoice_date_label",
+            "invoice_amount",
+            "invoice_balance_due",
+        )
         read_only_fields = fields
 
     def get_amount(self, obj):
         return money(obj.amount)
+
+    def get_invoice_date_label(self, obj):
+        if not obj.invoice.invoice_date:
+            return ""
+        return obj.invoice.invoice_date.strftime("%d %b %Y")
+
+    def get_invoice_amount(self, obj):
+        return money(obj.invoice.total_amount)
+
+    def get_invoice_balance_due(self, obj):
+        return money(invoice_balance(obj.invoice))
+
+
+class PaymentReceivedActivitySerializer(serializers.ModelSerializer):
+    activity_id = serializers.UUIDField(source="id", read_only=True)
+    payment_id = serializers.UUIDField(read_only=True)
+    activity_type_label = serializers.CharField(
+        source="get_activity_type_display",
+        read_only=True,
+    )
+    created_by = serializers.UUIDField(source="created_by_id", read_only=True, allow_null=True)
+    created_by_name = serializers.SerializerMethodField()
+    created_at_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PaymentReceivedActivity
+        fields = (
+            "activity_id",
+            "payment_id",
+            "activity_type",
+            "activity_type_label",
+            "message",
+            "created_by",
+            "created_by_name",
+            "created_at",
+            "created_at_label",
+        )
+        read_only_fields = fields
+
+    def get_created_by_name(self, obj):
+        return display_name_for_user(obj.created_by)
+
+    def get_created_at_label(self, obj):
+        if not obj.created_at:
+            return ""
+        return timezone.localtime(obj.created_at).strftime("%d %b %Y %I:%M %p")
 
 
 class PaymentApplicationWriteSerializer(serializers.Serializer):
@@ -166,6 +238,15 @@ class PaymentReceivedSerializer(serializers.ModelSerializer):
     status_label = serializers.SerializerMethodField()
     is_unapplied = serializers.SerializerMethodField()
     applications = PaymentApplicationSerializer(many=True, read_only=True)
+    bank_charges = serializers.SerializerMethodField()
+    receipt_status = serializers.SerializerMethodField()
+    receipt_status_label = serializers.SerializerMethodField()
+    is_void = serializers.BooleanField(read_only=True)
+    voided_by = serializers.UUIDField(source="voided_by_id", read_only=True, allow_null=True)
+    deposit_to = serializers.SerializerMethodField()
+    template_label = serializers.CharField(source="get_template_display", read_only=True)
+    attachments_count = serializers.SerializerMethodField()
+    amount_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = PaymentReceived
@@ -193,8 +274,61 @@ class PaymentReceivedSerializer(serializers.ModelSerializer):
             "created_by",
             "created_at",
             "updated_at",
+            "bank_charges",
+            "receipt_status",
+            "receipt_status_label",
+            "is_void",
+            "voided_at",
+            "void_reason",
+            "voided_by",
+            "deposit_to",
+            "template",
+            "template_label",
+            "attachments_count",
+            "amount_summary",
         )
         read_only_fields = fields
+
+    def get_bank_charges(self, obj):
+        return money(obj.bank_charges)
+
+    def get_receipt_status(self, obj):
+        return "void" if obj.is_void else "paid"
+
+    def get_receipt_status_label(self, obj):
+        return "VOID" if obj.is_void else "PAID"
+
+    def get_deposit_to(self, obj):
+        account = deposit_account(obj)
+        if not account:
+            return None
+        return {
+            "bank_account_id": account.id,
+            "name": account.name,
+            "account_type": account.account_type,
+            "bank_name": account.bank_name,
+            "currency": account.currency,
+        }
+
+    def get_attachments_count(self, obj):
+        annotated = getattr(obj, "attachments_total", None)
+        if annotated is not None:
+            return annotated
+        return Attachment.objects.filter(
+            organization_id=obj.organization_id,
+            attachable_type=ATTACHABLE_TYPE,
+            attachable_id=obj.id,
+        ).count()
+
+    def get_amount_summary(self, obj):
+        applied = ZERO if obj.is_void else Decimal(obj.amount_applied or 0)
+        return {
+            "amount_received": money(obj.amount),
+            "bank_charges": money(obj.bank_charges),
+            "amount_used_for_payments": money(applied),
+            "amount_refunded": money(ZERO),
+            "amount_in_excess": money(obj.unused_amount),
+        }
 
     def get_customer_name(self, obj):
         if not obj.customer:
@@ -219,6 +353,8 @@ class PaymentReceivedSerializer(serializers.ModelSerializer):
         return obj.application_status()
 
     def get_status_label(self, obj):
+        if obj.is_void:
+            return "Void"
         return "Unapplied" if obj.is_unapplied() else "Applied"
 
     def get_is_unapplied(self, obj):
@@ -232,6 +368,7 @@ class PaymentReceivedWriteSerializer(serializers.ModelSerializer):
     payment_number = serializers.CharField(required=False, allow_blank=True)
     payment_date = serializers.DateField(required=False, allow_null=True)
     applications = PaymentApplicationWriteSerializer(many=True, required=False)
+    replace_applications = serializers.BooleanField(required=False, default=False, write_only=True)
 
     class Meta:
         model = PaymentReceived
@@ -244,10 +381,12 @@ class PaymentReceivedWriteSerializer(serializers.ModelSerializer):
             "payment_mode",
             "reference_number",
             "amount",
+            "bank_charges",
             "currency",
             "notes",
             "bank_account_id",
             "applications",
+            "replace_applications",
         )
 
     def validate_payment_number(self, value):
@@ -260,7 +399,7 @@ class PaymentReceivedWriteSerializer(serializers.ModelSerializer):
         mapped = PAYMENT_MODE_ALIASES.get(key) or PAYMENT_MODE_ALIASES.get(key.replace(" ", "_"))
         if not mapped:
             raise serializers.ValidationError(
-                "Invalid payment mode. Allowed values: cash, bank_transfer, card, cheque, upi."
+                "Invalid payment mode. Allowed values: cash, bank_transfer, card, credit_card, cheque, upi."
             )
         return mapped
 
@@ -269,6 +408,12 @@ class PaymentReceivedWriteSerializer(serializers.ModelSerializer):
         if amount <= ZERO:
             raise serializers.ValidationError("Amount must be greater than zero.")
         return amount
+
+    def validate_bank_charges(self, value):
+        charges = Decimal(value or 0)
+        if charges < ZERO:
+            raise serializers.ValidationError("Bank charges cannot be negative.")
+        return charges
 
     def validate_organization_id(self, value):
         if value and not Organization.objects.filter(pk=value).exists():
@@ -288,13 +433,39 @@ class PaymentReceivedWriteSerializer(serializers.ModelSerializer):
         invoice_id = attrs.get("invoice_id")
         if invoice_id and not Invoice.objects.filter(pk=invoice_id).exists():
             raise serializers.ValidationError({"invoice_id": "Invoice not found."})
+
+        amount = attrs.get("amount")
+        if amount is None and self.instance:
+            amount = self.instance.amount
+        charges = attrs.get("bank_charges")
+        if charges is not None and amount is not None and Decimal(charges) > Decimal(amount):
+            raise serializers.ValidationError(
+                {"bank_charges": "Bank charges cannot be more than the amount received."}
+            )
+
+        if attrs.get("replace_applications"):
+            requested = sum(
+                (Decimal(row.get("amount") or 0) for row in attrs.get("applications") or []),
+                ZERO,
+            )
+            if amount is not None and requested > Decimal(amount):
+                raise serializers.ValidationError(
+                    {
+                        "applications": (
+                            "The amount entered for individual invoice(s) exceeds "
+                            f"the total payment of {money(amount)}."
+                        )
+                    }
+                )
         return attrs
 
-    def _apply_targets(self, payment, invoice_id, applications):
+    def _apply_targets(self, payment, invoice_id, applications, skip_zero=False):
         targets = list(applications or [])
         if invoice_id and not targets:
             targets = [{"invoice_id": invoice_id, "amount": payment.unused_amount}]
         for row in targets:
+            if skip_zero and row.get("amount") is not None and Decimal(row["amount"]) <= ZERO:
+                continue
             invoice = Invoice.objects.filter(
                 pk=row["invoice_id"],
                 organization=payment.organization,
@@ -314,6 +485,7 @@ class PaymentReceivedWriteSerializer(serializers.ModelSerializer):
         customer_id = validated_data.pop("customer_id", None)
         invoice_id = validated_data.pop("invoice_id", None)
         applications = validated_data.pop("applications", None)
+        validated_data.pop("replace_applications", None)
 
         customer = Customer.objects.filter(pk=customer_id, organization=organization).first()
         if not customer:
@@ -351,7 +523,12 @@ class PaymentReceivedWriteSerializer(serializers.ModelSerializer):
         customer_id = validated_data.pop("customer_id", None)
         invoice_id = validated_data.pop("invoice_id", None)
         applications = validated_data.pop("applications", None)
-        if customer_id:
+        replace = validated_data.pop("replace_applications", False)
+        if replace:
+            for application in list(instance.applications.select_related("invoice")):
+                reverse_application(application, payment=instance)
+            instance.refresh_from_db()
+        if customer_id and customer_id != instance.customer_id:
             if instance.applications.exists():
                 raise serializers.ValidationError(
                     {"customer_id": "Customer cannot be changed after the payment is applied."}
@@ -372,6 +549,6 @@ class PaymentReceivedWriteSerializer(serializers.ModelSerializer):
             setattr(instance, field, value)
         instance.save()
         if invoice_id or applications:
-            self._apply_targets(instance, invoice_id, applications)
+            self._apply_targets(instance, invoice_id, applications, skip_zero=replace)
         instance.refresh_from_db()
         return instance

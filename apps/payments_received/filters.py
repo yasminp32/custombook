@@ -16,6 +16,7 @@ PAYMENT_MODE_FILTERS = (
     ("cash", "Cash"),
     ("bank_transfer", "Bank Transfer"),
     ("card", "Card"),
+    ("credit_card", "Credit Card"),
     ("cheque", "Cheque"),
     ("upi", "UPI"),
 )
@@ -24,6 +25,7 @@ PAYMENT_STATUS_FILTERS = (
     ("all_statuses", "All Statuses"),
     ("unapplied", "Unapplied"),
     ("applied", "Applied"),
+    ("void", "Void"),
 )
 
 
@@ -87,7 +89,7 @@ class PaymentReceivedFilter(django_filters.FilterSet):
                 payment_date__month=today.month,
             )
         if key == "unapplied":
-            return queryset.filter(amount_applied__lt=F("amount"))
+            return queryset.filter(amount_applied__lt=F("amount"), voided_at__isnull=True)
         return queryset
 
     def filter_status(self, queryset, name, value):
@@ -95,9 +97,11 @@ class PaymentReceivedFilter(django_filters.FilterSet):
         if not key or key in ("all", "all_statuses"):
             return queryset
         if key == "unapplied":
-            return queryset.filter(amount_applied__lt=F("amount"))
+            return queryset.filter(amount_applied__lt=F("amount"), voided_at__isnull=True)
         if key == "applied":
-            return queryset.filter(amount_applied__gte=F("amount"))
+            return queryset.filter(amount_applied__gte=F("amount"), voided_at__isnull=True)
+        if key == "void":
+            return queryset.filter(voided_at__isnull=False)
         return queryset.none()
 
     def filter_mode(self, queryset, name, value):
@@ -109,6 +113,8 @@ class PaymentReceivedFilter(django_filters.FilterSet):
             "bank_transfer": "bank_transfer",
             "banktransfer": "bank_transfer",
             "card": "card",
+            "credit_card": "credit_card",
+            "creditcard": "credit_card",
             "cheque": "cheque",
             "check": "cheque",
             "upi": "upi",

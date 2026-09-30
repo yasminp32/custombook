@@ -2,7 +2,7 @@ import math
 
 from rest_framework import status
 from rest_framework.exceptions import Throttled
-from rest_framework.throttling import SimpleRateThrottle
+from rest_framework.throttling import SimpleRateThrottle, UserRateThrottle
 
 from apps.accounts.responses import api_error
 
@@ -28,6 +28,10 @@ class ResetPasswordThrottle(EmailRateThrottle):
 
 class VerifyOTPThrottle(EmailRateThrottle):
     scope = "verify_otp"
+
+
+class PaymentReceiptEmailThrottle(UserRateThrottle):
+    scope = "payment_receipt_email"
 
 
 class ThrottledResponseMixin:

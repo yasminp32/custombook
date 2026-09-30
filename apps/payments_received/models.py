@@ -18,8 +18,14 @@ class PaymentReceived(TimeStampedModel):
         CASH = "cash", "Cash"
         BANK_TRANSFER = "bank_transfer", "Bank Transfer"
         CARD = "card", "Card"
+        CREDIT_CARD = "credit_card", "Credit Card"
         CHEQUE = "cheque", "Cheque"
         UPI = "upi", "UPI"
+
+    class Template(models.TextChoices):
+        STANDARD = "standard", "Standard Template"
+        ELITE = "elite", "Elite Template"
+        CLASSIC = "classic", "Classic Template"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
@@ -47,9 +53,24 @@ class PaymentReceived(TimeStampedModel):
     reference_number = models.CharField(max_length=100, blank=True)
     amount = models.DecimalField(max_digits=19, decimal_places=4, default=0)
     amount_applied = models.DecimalField(max_digits=19, decimal_places=4, default=0)
+    bank_charges = models.DecimalField(max_digits=19, decimal_places=4, default=0)
     currency = models.CharField(max_length=3, blank=True, default="INR")
     notes = models.TextField(blank=True)
     bank_account_id = models.UUIDField(null=True, blank=True)
+    template = models.CharField(
+        max_length=20,
+        choices=Template.choices,
+        default=Template.STANDARD,
+    )
+    voided_at = models.DateTimeField(null=True, blank=True)
+    void_reason = models.TextField(blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="voided_payments_received",
+        null=True,
+        blank=True,
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -73,14 +94,55 @@ class PaymentReceived(TimeStampedModel):
 
     @property
     def unused_amount(self):
+        if self.voided_at is not None:
+            return ZERO
         remaining = (self.amount or ZERO) - (self.amount_applied or ZERO)
         return remaining if remaining > ZERO else ZERO
+
+    @property
+    def is_void(self):
+        return self.voided_at is not None
 
     def is_unapplied(self):
         return self.unused_amount > ZERO
 
     def application_status(self):
+        if self.is_void:
+            return "void"
         return "unapplied" if self.is_unapplied() else "applied"
+
+
+class PaymentReceivedActivity(TimeStampedModel):
+    class ActivityType(models.TextChoices):
+        COMMENT = "comment", "Comment"
+        HISTORY = "history", "History"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    payment = models.ForeignKey(
+        PaymentReceived,
+        on_delete=models.CASCADE,
+        related_name="activities",
+    )
+    activity_type = models.CharField(
+        max_length=20,
+        choices=ActivityType.choices,
+        default=ActivityType.HISTORY,
+    )
+    message = models.TextField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="payment_received_activities",
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "payment_received_activities"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.payment_id}: {self.message[:40]}"
 
 
 class PaymentReceivedApplication(models.Model):

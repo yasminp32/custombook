@@ -193,6 +193,7 @@ REST_FRAMEWORK = {
         "forgot_password": config("THROTTLE_FORGOT_PASSWORD", default="5/hour"),
         "reset_password": config("THROTTLE_RESET_PASSWORD", default="10/hour"),
         "verify_otp": config("THROTTLE_VERIFY_OTP", default="10/hour"),
+        "payment_receipt_email": config("THROTTLE_PAYMENT_RECEIPT_EMAIL", default="30/hour"),
     },
 }
 
