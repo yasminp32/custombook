@@ -169,7 +169,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     @classmethod
     def get_token(cls, user):
-        organization = user.owned_organizations.order_by("created_at").first()
+        from apps.organizations.services import get_current_organization
+
+        organization = get_current_organization(user)
         organization_id = organization.id if organization else None
         return OrganizationRefreshToken.for_user(user, organization_id=organization_id)
 
@@ -202,8 +204,15 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         reset_login_security(self.user)
         data["user"] = UserSerializer(self.user).data
-        organization = self.user.owned_organizations.order_by("created_at").first()
+        from apps.organizations.services import get_current_organization
+
+        organization = get_current_organization(self.user)
         data["organization"] = (
-            OrganizationSerializer(organization).data if organization else None
+            OrganizationSerializer(
+                organization,
+                context={"current_organization_id": organization.id},
+            ).data
+            if organization
+            else None
         )
         return data

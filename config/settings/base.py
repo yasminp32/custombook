@@ -58,6 +58,17 @@ INSTALLED_APPS = [
     "apps.files",
     "apps.folders",
     "apps.reports",
+    "apps.preferences",
+    "apps.currencies",
+    "apps.taxes",
+    "apps.pdf_templates",
+    "apps.payment_gateways",
+    "apps.sender_emails",
+    "apps.opening_screen",
+    "apps.image_upload",
+    "apps.privacy_security",
+    "apps.feedback",
+    "apps.about",
 ]
 
 MIDDLEWARE = [
@@ -165,6 +176,8 @@ PASSWORD_RESET_EXPIRY_MINUTES = config(
     "PASSWORD_RESET_EXPIRY_MINUTES", default=30, cast=int
 )
 PASSWORD_RESET_MAX_ATTEMPTS = config("PASSWORD_RESET_MAX_ATTEMPTS", default=5, cast=int)
+PORTAL_BASE_URL = config("PORTAL_BASE_URL", default="")
+
 FRONTEND_PASSWORD_RESET_URL = config(
     "FRONTEND_PASSWORD_RESET_URL",
     default="http://127.0.0.1:3000/reset-password",

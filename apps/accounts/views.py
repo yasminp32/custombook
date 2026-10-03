@@ -171,12 +171,22 @@ class TokenRefreshAPIView(TokenRefreshView):
 
 class MeView(APIView):
     def get(self, request):
-        organization = request.user.owned_organizations.order_by("created_at").first()
+        from apps.organizations.services import get_current_organization
+
+        organization = get_current_organization(request.user)
         return api_success(
             data={
                 "user": UserSerializer(request.user).data,
                 "organization": (
-                    OrganizationSerializer(organization).data if organization else None
+                    OrganizationSerializer(
+                        organization,
+                        context={
+                            "request": request,
+                            "current_organization_id": organization.id,
+                        },
+                    ).data
+                    if organization
+                    else None
                 ),
             }
         )

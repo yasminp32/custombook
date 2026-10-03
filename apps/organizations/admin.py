@@ -6,7 +6,9 @@ from apps.organizations.models import Organization
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
     list_display = (
+        "organization_number",
         "name",
+        "portal_name",
         "industry",
         "country",
         "state",

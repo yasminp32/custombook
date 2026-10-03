@@ -28,6 +28,13 @@ class User(TimeStampedModel):
         default=Status.ACTIVE,
         blank=True,
     )
+    role = models.ForeignKey(
+        "roles.Role",
+        on_delete=models.SET_NULL,
+        related_name="team_users",
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         db_table = "users"

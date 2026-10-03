@@ -40,6 +40,17 @@ urlpatterns = [
     path("api/files/", include("apps.files.urls")),
     path("api/folders/", include("apps.folders.urls")),
     path("api/reports/", include("apps.reports.urls")),
+    path("api/preferences/", include("apps.preferences.urls")),
+    path("api/currencies/", include("apps.currencies.urls")),
+    path("api/taxes/", include("apps.taxes.urls")),
+    path("api/pdf-templates/", include("apps.pdf_templates.urls")),
+    path("api/payment-gateways/", include("apps.payment_gateways.urls")),
+    path("api/sender-emails/", include("apps.sender_emails.urls")),
+    path("api/opening-screen/", include("apps.opening_screen.urls")),
+    path("api/image-upload/", include("apps.image_upload.urls")),
+    path("api/privacy-security/", include("apps.privacy_security.urls")),
+    path("api/feedback/", include("apps.feedback.urls")),
+    path("api/about/", include("apps.about.urls")),
 ]
 
 if settings.DEBUG:

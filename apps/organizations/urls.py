@@ -5,6 +5,7 @@ from apps.organizations.views import (
     OrganizationListView,
     OrganizationMeView,
     OrganizationSetupOptionsView,
+    OrganizationSwitchView,
 )
 
 urlpatterns = [
@@ -16,4 +17,5 @@ urlpatterns = [
         name="organization-country-states",
     ),
     path("me/", OrganizationMeView.as_view(), name="organization-me"),
+    path("switch/", OrganizationSwitchView.as_view(), name="organization-switch"),
 ]
